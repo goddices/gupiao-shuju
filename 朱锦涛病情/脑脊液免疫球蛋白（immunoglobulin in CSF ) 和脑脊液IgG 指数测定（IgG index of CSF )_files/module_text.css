@@ -1,0 +1,53 @@
+﻿/***************************************************
+
+	MediX - MODULE_TEXT STYLES
+	Author: Jang Peng	
+	Company: Omesoft (www.omesoft.com)	
+	
+****************************************************/
+/*正文标题样式表*/
+
+/*文章容器*/
+#textContainer
+{
+	overflow: hidden;
+	white-space: normal; 
+	word-break: break-all;
+}
+/*文章标题*/
+DIV.line {
+    border-top: solid 1px #ccc;
+}
+
+#textTitle {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+#textTitle P {
+    text-align: center;
+	font-size: 1.3em;
+	font-family: 华文细黑;
+	font-weight: bold;
+	line-height: 120%;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+.textDescription {
+	margin: 5px 10px 20px 10px;
+}
+.textDescription P {
+    text-indent: 2em;
+    font-size: 1em;
+	line-height: 130%;
+	margin-top: 0.5em;
+	margin-bottom: 0.4em;
+}
+.textDescription IMG {
+	max-width: 280px;
+	overflow: hidden;
+}
+.textDescription SPAN {
+	font-size: 1.1em;
+	font-weight: bold;
+	line-height: 200%;
+}

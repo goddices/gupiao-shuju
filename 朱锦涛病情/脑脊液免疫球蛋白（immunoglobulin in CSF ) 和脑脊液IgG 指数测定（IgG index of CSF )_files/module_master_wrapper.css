@@ -1,0 +1,23 @@
+﻿/***************************************************
+
+	MediX - MODULE_MASTER_WRAPPER STYLES
+	Author: Jang Peng	
+	Company: Omesoft (www.omesoft.com)
+	
+****************************************************/
+body {
+	height: 100%; 
+	padding: 0px; margin: 0px; border: 0px; border-style: none;
+	background-color:transparent; background-repeat: repeat-x; background-position: left top;
+	font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 14px;
+}
+
+a img { border-style: none; }
+hr { display: none;}
+
+#content_wrapper { width: 100%; height: 100%; }
+#content {
+    width: 100%; height: 100%; 
+    text-align: left; 
+    margin-left: auto; margin-right: auto; 
+}
