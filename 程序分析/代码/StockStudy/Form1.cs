@@ -18,10 +18,10 @@ namespace StockStudy
             InitializeComponent();
         }
 
-        private async Task<string?> RequestQuotes(string market, string code)
+        private async Task<string?> RequestQuotes(string market, string code, string fqt, string period)
         {
             var randomString = $"jQuery3510{Random.Shared.Next(1000_0000, 99999_9999)}_171{Random.Shared.Next(100_00000, 999_99999)}";
-            var url = $"https://push2his.eastmoney.com/api/qt/stock/kline/get?cb={randomString}&secid={market}.{code}&ut=fa5fd1943c7b386f172d6893dbfba10b&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=102&fqt=1&end=20500101&lmt=744&_=1716992167964";
+            var url = $"https://push2his.eastmoney.com/api/qt/stock/kline/get?cb={randomString}&secid={market}.{code}&ut=fa5fd1943c7b386f172d6893dbfba10b&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt={period}&fqt={fqt}&end=20500101&lmt=744&_=1716992167964";
             var resp = await _httpClient.GetAsync(url);
             if (resp.IsSuccessStatusCode)
             {
@@ -39,7 +39,7 @@ namespace StockStudy
         private EastmoneyWebQuote? ConverQuote(string content)
         {
             var jobject = JsonConvert.DeserializeObject<JObject>(content);
-            if (jobject?["data"] != null && jobject?["data"]?["klines"] != null)
+            if (jobject!["data"]!.HasValues && jobject!["data"]!["klines"]!.HasValues)
             {
                 var list = new List<EastmoneyWebQuoteDetail>();
                 var lines = JsonConvert.DeserializeObject<IEnumerable<string>>(jobject!["data"]!["klines"]!.ToString());
@@ -80,6 +80,7 @@ namespace StockStudy
                 CostAmount = investedAmount,
                 FinalAmount = finalAmount,
             };
+
         }
 
         private async void button1_Click(object sender, EventArgs e)
@@ -88,8 +89,13 @@ namespace StockStudy
             if (radioButton1.Checked) market = "1";
             if (radioButton2.Checked) market = "0";
             var code = textBox1.Text;
-            var resp = await RequestQuotes(market, code);
-            textBox2.AppendText(TradeStrategy(ConverQuote(resp)).ToString());
+            var resp = await RequestQuotes(market, code, (comboBox1.SelectedIndex + 1).ToString(), "102");
+            var s = ConverQuote(resp);
+            if (s != null)
+            {
+                textBox2.AppendText(TradeStrategy(s).ToString());
+            }
+            else { textBox2.AppendText("½âÎö´íÎó"); }
             textBox2.AppendText(Environment.NewLine);
             textBox2.ScrollToCaret();
         }
@@ -101,10 +107,23 @@ namespace StockStudy
                 using (var stream = openFileDialog1.OpenFile())
                 {
                     var ks = await ReadQuotes(stream);
-                    TradeStrategy(ks);
+                    if (ks != null)
+                    {
+                        TradeStrategy(ks);
+                    }
+                    else
+                    {
+                        MessageBox.Show("½âÎö´íÎó");
+                    }
                 }
             }
 
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            comboBox1.SelectedIndex = 0;
+            comboBox2.SelectedIndex = 0;
         }
     }
 }

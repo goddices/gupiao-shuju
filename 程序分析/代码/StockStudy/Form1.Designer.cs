@@ -36,6 +36,8 @@
             textBox1 = new TextBox();
             label1 = new Label();
             textBox2 = new TextBox();
+            comboBox1 = new ComboBox();
+            comboBox2 = new ComboBox();
             SuspendLayout();
             // 
             // button1
@@ -111,11 +113,33 @@
             textBox2.Size = new Size(992, 382);
             textBox2.TabIndex = 6;
             // 
+            // comboBox1
+            // 
+            comboBox1.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBox1.FormattingEnabled = true;
+            comboBox1.Items.AddRange(new object[] { "前复权", "后复权" });
+            comboBox1.Location = new Point(441, 21);
+            comboBox1.Name = "comboBox1";
+            comboBox1.Size = new Size(151, 28);
+            comboBox1.TabIndex = 7;
+            // 
+            // comboBox2
+            // 
+            comboBox2.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBox2.FormattingEnabled = true;
+            comboBox2.Items.AddRange(new object[] { "日K", "周K" });
+            comboBox2.Location = new Point(626, 21);
+            comboBox2.Name = "comboBox2";
+            comboBox2.Size = new Size(151, 28);
+            comboBox2.TabIndex = 8;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1044, 560);
+            Controls.Add(comboBox2);
+            Controls.Add(comboBox1);
             Controls.Add(textBox2);
             Controls.Add(label1);
             Controls.Add(textBox1);
@@ -125,6 +149,7 @@
             Controls.Add(button1);
             Name = "Form1";
             Text = "Form1";
+            Load += Form1_Load;
             ResumeLayout(false);
             PerformLayout();
         }
@@ -139,5 +164,7 @@
         private TextBox textBox1;
         private Label label1;
         private TextBox textBox2;
+        private ComboBox comboBox1;
+        private ComboBox comboBox2;
     }
 }
