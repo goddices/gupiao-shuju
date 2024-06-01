@@ -4,20 +4,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StockStudy
+namespace StockStudy.Models
 {
-    public interface IStockQuote
-    {
-        public string Name { get; set; }
-        public IEnumerable<IStockQuoteDetail> Quotes { get; set; }
-    }
-
-    public interface IStockQuoteDetail
+    public class StockQuoteLine
     {
         public DateTime TradeDay { get; set; }
         public decimal Open { get; set; }
         public decimal Close { get; set; }
         public decimal High { get; set; }
         public decimal Low { get; set; }
+        public decimal Percentage { get; set; }
+        public decimal RaiseAmount { get; set; }
+        public decimal DealedAmount { get; set; }
     }
 }

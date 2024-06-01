@@ -1,0 +1,4 @@
+IPO: initial public offering,  首次公开发行，即新股
+Right Issue: 也称Right Offering,  供股 指上市公司发行新增股票让现有股东认购，股东可按其持股比例认购新股 ，类似A股定向增发
+Subscription Price: 指上市公司发行新增股票让现有股东认购，股东可按其持股比例认购新股
+Adjust Price: 类似A股的前复权后复权
