@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace StockStudy
 {
-    public static class TextboxExtensions
+    internal static class TextboxExtensions
     {
-        public static void WriteLine(this TextBox box, object? obj)
+        internal static void WriteLine(this TextBox box, object? obj)
         {
             box.WriteLine(obj?.ToString());
         }
 
-        public static void WriteLine(this TextBox textbox, string? message, params object[] args)
+        internal static void WriteLine(this TextBox textbox, string? message, params object[] args)
         {
             if (string.IsNullOrWhiteSpace(message)) return;
             if (args == null || !args.Any())

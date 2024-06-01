@@ -1,5 +1,6 @@
 namespace StockStudy
 {
+    using StockStudy.Extensions;
     using StockStudy.Models;
     using System.Collections;
     using System.Collections.Generic;
@@ -23,7 +24,12 @@ namespace StockStudy
             if (markketSH.Checked) market = "1";
             if (marketSZ.Checked) market = "0";
             var code = stockCodeInput.Text;
-            var quote = await _quoteReader.ReadQuoteAsync(market, code, GetAdjustType(adjustSelect), PeriodType.Weekly);
+            var quote = await _quoteReader.ReadQuoteAsync(
+                market,
+                code,
+                adjustSelect.GetSelectedValue<AdjustPriceType>(),
+                periodSelect.GetSelectedValue<PeriodType>()
+            );
             WriteAnalysisResult(quote);
         }
 
@@ -50,28 +56,17 @@ namespace StockStudy
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            InitTypeSelectOptions();
+        }
+
+        private void InitTypeSelectOptions()
+        {
+            adjustSelect.AddItemValues(AdjustPriceType.Pre, AdjustPriceType.Post);
+            periodSelect.AddItemValues(PeriodType.Daily, PeriodType.Weekly);
             adjustSelect.SelectedIndex = 1;
             periodSelect.SelectedIndex = 1;
         }
 
-        private static AdjustPriceType GetAdjustType(ComboBox comboBox)
-        {
-            return comboBox.SelectedIndex switch
-            {
-                0 => AdjustPriceType.Pre,
-                1 => AdjustPriceType.Post,
-                _ => AdjustPriceType.Unset
-            };
-        }
 
-        private static PeriodType GetPeriodType(ComboBox comboBox)
-        {
-            return comboBox.SelectedIndex switch
-            {
-                0 => PeriodType.Daily,
-                1 => PeriodType.Weekly,
-                _ => PeriodType.Unset
-            };
-        }
     }
 }

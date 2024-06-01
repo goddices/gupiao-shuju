@@ -40,20 +40,20 @@
             periodSelect = new ComboBox();
             SuspendLayout();
             // 
-            // button1
+            // buttonApi
             // 
             buttonApi.Location = new Point(807, 20);
-            buttonApi.Name = "button1";
+            buttonApi.Name = "buttonApi";
             buttonApi.Size = new Size(94, 29);
             buttonApi.TabIndex = 0;
             buttonApi.Text = "接口方式";
             buttonApi.UseVisualStyleBackColor = true;
             buttonApi.Click += ButtonApi_Click;
             // 
-            // button2
+            // buttonFile
             // 
             buttonFile.Location = new Point(926, 20);
-            buttonFile.Name = "button2";
+            buttonFile.Name = "buttonFile";
             buttonFile.Size = new Size(94, 29);
             buttonFile.TabIndex = 1;
             buttonFile.Text = "文件方式";
@@ -64,51 +64,51 @@
             // 
             openFileDialog1.FileName = "openFileDialog1";
             // 
-            // radioButton1
+            // markketSH
             // 
             markketSH.AutoSize = true;
             markketSH.Checked = true;
             markketSH.Location = new Point(25, 22);
-            markketSH.Name = "radioButton1";
+            markketSH.Name = "markketSH";
             markketSH.Size = new Size(60, 24);
             markketSH.TabIndex = 2;
             markketSH.TabStop = true;
             markketSH.Text = "沪市";
             markketSH.UseVisualStyleBackColor = true;
             // 
-            // radioButton2
+            // marketSZ
             // 
             marketSZ.AutoSize = true;
             marketSZ.Location = new Point(103, 22);
-            marketSZ.Name = "radioButton2";
+            marketSZ.Name = "marketSZ";
             marketSZ.Size = new Size(60, 24);
             marketSZ.TabIndex = 3;
             marketSZ.TabStop = true;
             marketSZ.Text = "深市";
             marketSZ.UseVisualStyleBackColor = true;
             // 
-            // textBox1
+            // stockCodeInput
             // 
             stockCodeInput.Location = new Point(240, 22);
-            stockCodeInput.Name = "textBox1";
+            stockCodeInput.Name = "stockCodeInput";
             stockCodeInput.Size = new Size(178, 27);
             stockCodeInput.TabIndex = 4;
             // 
-            // label1
+            // labelCode
             // 
             labelCode.AutoSize = true;
             labelCode.Location = new Point(181, 25);
-            labelCode.Name = "label1";
+            labelCode.Name = "labelCode";
             labelCode.Size = new Size(39, 20);
             labelCode.TabIndex = 5;
             labelCode.Text = "代码";
             // 
-            // textBox2
+            // logArea
             // 
             logArea.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             logArea.Location = new Point(25, 72);
             logArea.Multiline = true;
-            logArea.Name = "textBox2";
+            logArea.Name = "logArea";
             logArea.ScrollBars = ScrollBars.Vertical;
             logArea.Size = new Size(992, 459);
             logArea.TabIndex = 6;
@@ -117,7 +117,6 @@
             // 
             adjustSelect.DropDownStyle = ComboBoxStyle.DropDownList;
             adjustSelect.FormattingEnabled = true;
-            adjustSelect.Items.AddRange(new object[] { "前复权", "后复权" });
             adjustSelect.Location = new Point(441, 21);
             adjustSelect.Name = "adjustSelect";
             adjustSelect.Size = new Size(151, 28);
@@ -127,7 +126,6 @@
             // 
             periodSelect.DropDownStyle = ComboBoxStyle.DropDownList;
             periodSelect.FormattingEnabled = true;
-            periodSelect.Items.AddRange(new object[] { "日K", "周K" });
             periodSelect.Location = new Point(626, 21);
             periodSelect.Name = "periodSelect";
             periodSelect.Size = new Size(151, 28);

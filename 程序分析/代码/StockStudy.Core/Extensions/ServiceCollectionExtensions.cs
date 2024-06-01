@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StockStudy.Core;
 using StockStudy.EastmoneyImpl;
+using StockStudy.Mappers;
 using StockStudy.Models;
 using StockStudy.Storage;
 
@@ -32,7 +33,9 @@ namespace StockStudy
         {
             return services
                 .AddSingleton<IAnalyst, DefaultAnalyst>()
-                .AddSingleton<IQuoteReader, EastmoneyQuoteReader>();
+                .AddSingleton<IQuoteReader, EastmoneyQuoteReader>()
+                .AddSingleton<IMappers, EastmoneyMapper>()
+            ;
         }
     }
 }

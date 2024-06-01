@@ -1,4 +1,5 @@
-﻿using System;
+﻿using StockStudy.Mappers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,5 +25,6 @@ namespace StockStudy.Models
         /// <param name="stream"></param>
         /// <returns>行情数据<seealso cref="StockQuote"/></returns>
         Task<StockQuote?> ReadQuoteAsync(Stream stream, CancellationToken token = default);
+
     }
 }
