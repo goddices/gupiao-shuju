@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace StockStudy.Models
+﻿namespace StockStudy.Models
 {
     public interface IAnalyst
     {
@@ -13,6 +7,8 @@ namespace StockStudy.Models
         /// </summary>
         /// <param name="quotes">行情数据</param>
         /// <returns>最终结果，不带中间细节</returns>
-        InvestmentSnapshot StrategyAnanlyzeFinal(StockQuote? quotes);
+        InvestmentSnapshot StrategyAnalyze(string strategyName, StockQuote? quote);
+
+        IEnumerable<string> StrategyCodeList { get; }
     }
 }

@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace StockStudy.Extensions
 {
-    internal class ComboBoxExtensionItem<TEnum> where TEnum : struct
+    internal class ComboBoxExtendOptionItem<TEnum> where TEnum : struct
     {
-        internal ComboBoxExtensionItem(TEnum value)
+        internal ComboBoxExtendOptionItem(TEnum value)
         {
             var enumType = typeof(TEnum);
             if (!enumType.IsEnum)

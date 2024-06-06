@@ -38,6 +38,10 @@
             logArea = new TextBox();
             adjustSelect = new ComboBox();
             periodSelect = new ComboBox();
+            groupBox1 = new GroupBox();
+            myAnyTestStrategy = new RadioButton();
+            dollerCostAveragingStrategy = new RadioButton();
+            groupBox1.SuspendLayout();
             SuspendLayout();
             // 
             // buttonApi
@@ -106,11 +110,11 @@
             // logArea
             // 
             logArea.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            logArea.Location = new Point(25, 72);
+            logArea.Location = new Point(25, 146);
             logArea.Multiline = true;
             logArea.Name = "logArea";
             logArea.ScrollBars = ScrollBars.Vertical;
-            logArea.Size = new Size(992, 459);
+            logArea.Size = new Size(992, 385);
             logArea.TabIndex = 6;
             // 
             // adjustSelect
@@ -131,11 +135,44 @@
             periodSelect.Size = new Size(151, 28);
             periodSelect.TabIndex = 8;
             // 
+            // groupBox1
+            // 
+            groupBox1.Controls.Add(myAnyTestStrategy);
+            groupBox1.Controls.Add(dollerCostAveragingStrategy);
+            groupBox1.Location = new Point(21, 55);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(478, 85);
+            groupBox1.TabIndex = 9;
+            groupBox1.TabStop = false;
+            // 
+            // myAnyTestStrategy
+            // 
+            myAnyTestStrategy.AutoSize = true;
+            myAnyTestStrategy.Location = new Point(195, 37);
+            myAnyTestStrategy.Name = "myAnyTestStrategy";
+            myAnyTestStrategy.Size = new Size(150, 24);
+            myAnyTestStrategy.TabIndex = 1;
+            myAnyTestStrategy.Text = "我随便测测的策略";
+            myAnyTestStrategy.UseVisualStyleBackColor = true;
+            // 
+            // dollerCostAveragingStrategy
+            // 
+            dollerCostAveragingStrategy.AutoSize = true;
+            dollerCostAveragingStrategy.Checked = true;
+            dollerCostAveragingStrategy.Location = new Point(25, 37);
+            dollerCostAveragingStrategy.Name = "dollerCostAveragingStrategy";
+            dollerCostAveragingStrategy.Size = new Size(90, 24);
+            dollerCostAveragingStrategy.TabIndex = 0;
+            dollerCostAveragingStrategy.TabStop = true;
+            dollerCostAveragingStrategy.Text = "定投策略";
+            dollerCostAveragingStrategy.UseVisualStyleBackColor = true;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1044, 560);
+            Controls.Add(groupBox1);
             Controls.Add(periodSelect);
             Controls.Add(adjustSelect);
             Controls.Add(logArea);
@@ -147,8 +184,10 @@
             Controls.Add(buttonApi);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "我的量化分析工具";
+            Text = "我的量化策略分析工具";
             Load += Form1_Load;
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -165,5 +204,8 @@
         private TextBox logArea;
         private ComboBox adjustSelect;
         private ComboBox periodSelect;
+        private GroupBox groupBox1;
+        private RadioButton myAnyTestStrategy;
+        private RadioButton dollerCostAveragingStrategy;
     }
 }

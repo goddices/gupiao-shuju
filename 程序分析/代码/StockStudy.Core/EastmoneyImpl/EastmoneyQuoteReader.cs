@@ -1,10 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using StockStudy.Models;
 using StockStudy.Mappers;
 
@@ -53,19 +48,26 @@ namespace StockStudy.EastmoneyImpl
 
         private static StockQuote? ConvertQuote(string content, PeriodType periodType = PeriodType.Unset)
         {
-            var jobject = JsonConvert.DeserializeObject<JObject>(content);
-            if (jobject!["data"]!.HasValues && jobject!["data"]!["klines"]!.HasValues)
+            try
             {
-                var list = new List<StockQuoteLine>();
-                var lines = JsonConvert.DeserializeObject<IEnumerable<string>>(jobject!["data"]!["klines"]!.ToString());
-                list.AddRange(lines!.Select(ReadLine));
-                return new StockQuote
-                (
-                    stockName: jobject!["data"]!["name"]!.ToString(),
-                    quoteLines: list.OrderBy(e => e.TradeDay),
-                    periodType: periodType
-                );
+                var jobject = JsonConvert.DeserializeObject<JObject>(content);
+                if (jobject!["data"]!.HasValues && jobject!["data"]!["klines"]!.HasValues)
+                {
+                    var list = new List<StockQuoteLine>();
+                    var lines = JsonConvert.DeserializeObject<IEnumerable<string>>(jobject!["data"]!["klines"]!.ToString());
+                    list.AddRange(lines!.Select(ReadLine));
+                    return new StockQuote
+                    (
+                        stockName: jobject!["data"]!["name"]!.ToString(),
+                        quoteLines: list.OrderBy(e => e.TradeDay),
+                        periodType: periodType
+                    );
+                }
             }
+            catch
+            {
+            }
+
             return null;
         }
 

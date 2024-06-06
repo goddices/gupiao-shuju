@@ -48,8 +48,12 @@ namespace StockStudy
 
         private void WriteAnalysisResult(StockQuote? quote)
         {
+            var index = 0;
+            if (dollerCostAveragingStrategy.Checked) index = 1;
+            else if (myAnyTestStrategy.Checked) index = 0;
+            var code = _analyst.StrategyCodeList.ElementAt(index);
             if (quote != null)
-                logArea.WriteLine(_analyst.StrategyAnanlyzeFinal(quote));
+                logArea.WriteLine(_analyst.StrategyAnalyze(code, quote));
             else
                 logArea.WriteLine("½âÎö´íÎó");
         }
@@ -61,8 +65,8 @@ namespace StockStudy
 
         private void InitTypeSelectOptions()
         {
-            adjustSelect.AddItemValues(AdjustPriceType.Pre, AdjustPriceType.Post);
-            periodSelect.AddItemValues(PeriodType.Daily, PeriodType.Weekly);
+            adjustSelect.AddOptions(AdjustPriceType.Pre, AdjustPriceType.Post);
+            periodSelect.AddOptions(PeriodType.Daily, PeriodType.Weekly);
             adjustSelect.SelectedIndex = 1;
             periodSelect.SelectedIndex = 1;
         }
