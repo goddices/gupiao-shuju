@@ -4,6 +4,7 @@ namespace StockStudy
     using StockStudy.Models;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
 
     public partial class MainForm : Form
@@ -14,8 +15,14 @@ namespace StockStudy
         public MainForm(IAnalyst analyst, IQuoteReader quoteReader) : base()
         {
             InitializeComponent();
+            DynamicInitialize();
             _analyst = analyst;
             _quoteReader = quoteReader;
+        }
+
+        private void DynamicInitialize()
+        {
+            InitTypeSelectOptions();
         }
 
         private async void ButtonApi_Click(object sender, EventArgs e)
@@ -46,6 +53,19 @@ namespace StockStudy
 
         }
 
+        private void ButtonTestPy_Click(object sender, EventArgs e)
+        {
+            Process p = new Process();
+            p.StartInfo = new ProcessStartInfo
+            {
+                CreateNoWindow = true,
+                WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory, 
+                Arguments = "PythonFiles/test.py",
+                FileName = "python"
+            };
+            p.Start();
+        }
+
         private void WriteAnalysisResult(StockQuote? quote)
         {
             var index = 0;
@@ -53,14 +73,9 @@ namespace StockStudy
             else if (myAnyTestStrategy.Checked) index = 0;
             var code = _analyst.StrategyCodeList.ElementAt(index);
             if (quote != null)
-                logArea.WriteLine(_analyst.StrategyAnalyze(code, quote));
+                textboxLogger.WriteLine(_analyst.StrategyAnalyze(code, quote));
             else
-                logArea.WriteLine("½âÎö´íÎó");
-        }
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            InitTypeSelectOptions();
+                textboxLogger.WriteLine("½âÎö´íÎó");
         }
 
         private void InitTypeSelectOptions()
@@ -70,7 +85,5 @@ namespace StockStudy
             adjustSelect.SelectedIndex = 1;
             periodSelect.SelectedIndex = 1;
         }
-
-
     }
 }

@@ -35,12 +35,13 @@
             marketSZ = new RadioButton();
             stockCodeInput = new TextBox();
             labelCode = new Label();
-            logArea = new TextBox();
+            textboxLogger = new TextBox();
             adjustSelect = new ComboBox();
             periodSelect = new ComboBox();
             groupBox1 = new GroupBox();
             myAnyTestStrategy = new RadioButton();
             dollerCostAveragingStrategy = new RadioButton();
+            buttonTestPy = new Button();
             groupBox1.SuspendLayout();
             SuspendLayout();
             // 
@@ -109,13 +110,13 @@
             // 
             // logArea
             // 
-            logArea.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            logArea.Location = new Point(25, 146);
-            logArea.Multiline = true;
-            logArea.Name = "logArea";
-            logArea.ScrollBars = ScrollBars.Vertical;
-            logArea.Size = new Size(992, 385);
-            logArea.TabIndex = 6;
+            textboxLogger.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textboxLogger.Location = new Point(25, 146);
+            textboxLogger.Multiline = true;
+            textboxLogger.Name = "logArea";
+            textboxLogger.ScrollBars = ScrollBars.Vertical;
+            textboxLogger.Size = new Size(992, 385);
+            textboxLogger.TabIndex = 6;
             // 
             // adjustSelect
             // 
@@ -167,15 +168,26 @@
             dollerCostAveragingStrategy.Text = "定投策略";
             dollerCostAveragingStrategy.UseVisualStyleBackColor = true;
             // 
+            // buttonTestPy
+            // 
+            buttonTestPy.Location = new Point(923, 77);
+            buttonTestPy.Name = "buttonTestPy";
+            buttonTestPy.Size = new Size(94, 29);
+            buttonTestPy.TabIndex = 10;
+            buttonTestPy.Text = "PyTest";
+            buttonTestPy.UseVisualStyleBackColor = true;
+            buttonTestPy.Click += ButtonTestPy_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1044, 560);
+            Controls.Add(buttonTestPy);
             Controls.Add(groupBox1);
             Controls.Add(periodSelect);
             Controls.Add(adjustSelect);
-            Controls.Add(logArea);
+            Controls.Add(textboxLogger);
             Controls.Add(labelCode);
             Controls.Add(stockCodeInput);
             Controls.Add(marketSZ);
@@ -184,8 +196,7 @@
             Controls.Add(buttonApi);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "我的量化策略分析工具";
-            Load += Form1_Load;
+            Text = "我的量化策略分析工具"; 
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();
             ResumeLayout(false);
@@ -201,11 +212,12 @@
         private RadioButton marketSZ;
         private TextBox stockCodeInput;
         private Label labelCode;
-        private TextBox logArea;
+        private TextBox textboxLogger;
         private ComboBox adjustSelect;
         private ComboBox periodSelect;
         private GroupBox groupBox1;
         private RadioButton myAnyTestStrategy;
         private RadioButton dollerCostAveragingStrategy;
+        private Button buttonTestPy;
     }
 }
