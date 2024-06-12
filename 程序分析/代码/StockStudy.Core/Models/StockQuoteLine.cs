@@ -5,7 +5,7 @@
         /// <summary>
         /// 交易日
         /// </summary>
-        public DateTime TradeDay { get; set; }
+        public DateTime TradeDate { get; set; }
 
         /// <summary>
         /// 开盘

@@ -1,5 +1,6 @@
 namespace StockStudy
 {
+    using Microsoft.Extensions.DependencyInjection;
     using StockStudy.Extensions;
     using StockStudy.Models;
     using System.Collections;
@@ -9,15 +10,15 @@ namespace StockStudy
 
     public partial class MainForm : Form
     {
-        private readonly IAnalyst _analyst;
         private readonly IQuoteReader _quoteReader;
+        private readonly IServiceProvider _serviceProvider;
 
-        public MainForm(IAnalyst analyst, IQuoteReader quoteReader) : base()
+        public MainForm(IQuoteReader quoteReader, IServiceProvider serviceProvider) : base()
         {
             InitializeComponent();
             DynamicInitialize();
-            _analyst = analyst;
             _quoteReader = quoteReader;
+            _serviceProvider = serviceProvider;
         }
 
         private void DynamicInitialize()
@@ -59,7 +60,7 @@ namespace StockStudy
             p.StartInfo = new ProcessStartInfo
             {
                 CreateNoWindow = true,
-                WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory, 
+                WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
                 Arguments = "PythonFiles/test.py",
                 FileName = "python"
             };
@@ -71,9 +72,14 @@ namespace StockStudy
             var index = 0;
             if (dollerCostAveragingStrategy.Checked) index = 1;
             else if (myAnyTestStrategy.Checked) index = 0;
-            var code = _analyst.StrategyCodeList.ElementAt(index);
+            var analyst = _serviceProvider.GetRequiredService<IAnalyst>();
+            var code = analyst.StrategyCodeList.ElementAt(index);
             if (quote != null)
-                textboxLogger.WriteLine(_analyst.StrategyAnalyze(code, quote));
+            {
+                var result = analyst.StrategyAnalyze(code, quote);
+                textboxLogger.WriteLine(result);
+                textboxLogger.WriteLine(result.GetDetails());
+            }
             else
                 textboxLogger.WriteLine("½âÎö´íÎó");
         }

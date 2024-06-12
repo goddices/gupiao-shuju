@@ -8,6 +8,15 @@ namespace StockStudy
 {
     internal static class TextboxExtensions
     {
+        internal static void WriteLine(this TextBox box, IEnumerable<string> multi)
+        {
+            foreach (var item in multi)
+            {
+                box.WriteLine(item);
+            }
+        }
+
+
         internal static void WriteLine(this TextBox box, object? obj)
         {
             box.WriteLine(obj?.ToString());

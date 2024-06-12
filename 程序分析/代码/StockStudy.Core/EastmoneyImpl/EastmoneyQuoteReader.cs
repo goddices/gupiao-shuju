@@ -59,7 +59,7 @@ namespace StockStudy.EastmoneyImpl
                     return new StockQuote
                     (
                         stockName: jobject!["data"]!["name"]!.ToString(),
-                        quoteLines: list.OrderBy(e => e.TradeDay),
+                        quoteLines: list.OrderBy(e => e.TradeDate),
                         periodType: periodType
                     );
                 }
@@ -76,7 +76,7 @@ namespace StockStudy.EastmoneyImpl
             var data = content.Split(',', StringSplitOptions.RemoveEmptyEntries);
             return new StockQuoteLine
             {
-                TradeDay = DateTime.Parse(data[0]),
+                TradeDate = DateTime.Parse(data[0]),
                 Open = Convert.ToDecimal(data[1]),
                 Close = Convert.ToDecimal(data[2]),
                 High = Convert.ToDecimal(data[3]),

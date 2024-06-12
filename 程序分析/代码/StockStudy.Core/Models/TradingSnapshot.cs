@@ -1,0 +1,65 @@
+﻿using StockStudy.Extensions;
+
+namespace StockStudy.Models
+{
+    /// <summary>
+    /// 
+    /// </summary>
+    public class TradingSnapshot
+    {
+        /// <summary>
+        /// 交易日
+        /// </summary>
+        public DateTime TradeDate { get; set; }
+
+        /// <summary>
+        /// 现金余额
+        /// </summary>
+        public decimal AvailableCash { get; set; }
+
+        /// <summary>
+        /// 持有
+        /// </summary>
+        public IEnumerable<StockHolding>? StockHoldings { get; set; }
+
+        public override string ToString()
+        {
+            var details = string.Join(Environment.NewLine, (StockHoldings ?? new StockHolding[0]).Select(e => e.ToString()));
+            return $"在{TradeDate:yyyy-MM-dd} {Environment.NewLine} {details} {Environment.NewLine} 现金余额：{AvailableCash:0.00}";
+        }
+
+    }
+
+    public class StockHolding
+    {
+        /// <summary>
+        /// 持有股票名
+        /// </summary>
+        public string? StockName { get; set; }
+
+        /// <summary>
+        /// 持有股数
+        /// </summary>
+        public decimal HoldingShares { get; set; }
+
+        /// <summary>
+        /// 当前价格
+        /// </summary>
+        public decimal TradePrice { get; set; }
+
+        /// <summary>
+        /// 成交数量
+        /// </summary>
+        public decimal TradeVolume { get; set; }
+
+        /// <summary>
+        /// 交易方向
+        /// </summary>
+        public TransactionDirection TradeDirection { get; set; }
+
+        public override string ToString()
+        {
+            return $"{TradeDirection.GetDesciption()}{StockName}了{TradeVolume}，价格为 {TradePrice:0.00}，持有{HoldingShares}";
+        }
+    }
+}

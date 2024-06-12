@@ -1,17 +1,18 @@
-﻿using StockStudy.Models;
+﻿using Microsoft.Extensions.DependencyInjection;
+using StockStudy.Models;
 
 namespace StockStudy.Core
 {
-    public class DefaultAnalyst : IAnalyst
+    public class DefaultAnalystEngine : IAnalyst
     {
         private IDictionary<string, IStrategyRegression> _strategyDict;
 
-        public DefaultAnalyst()
+        public DefaultAnalystEngine(IServiceProvider serviceProvider)
         {
             _strategyDict = new IStrategyRegression[]
             {
-                new AnyTestStrategyRegression(),
-                new DollarCostAveragingStrategyRegression(),
+                serviceProvider.GetRequiredService<AnyTestStrategyRegression>(),
+                serviceProvider.GetRequiredService<DollarCostAveragingStrategyRegression>(),
             }.ToDictionary(k => k.Name, k => k);
         }
 
