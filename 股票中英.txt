@@ -2,3 +2,13 @@ IPO: initial public offering,  首次公开发行，即新股
 Right Issue: 也称Right Offering,  供股 指上市公司发行新增股票让现有股东认购，股东可按其持股比例认购新股 ，类似A股定向增发
 Subscription Price: 指上市公司发行新增股票让现有股东认购，股东可按其持股比例认购新股
 Adjust Price: 类似A股的前复权后复权
+
+
+市盈率=公司市值/净利润=PE=Price Earnings Ratio
+
+市净率=公司市值/净资产=PB=Price-to-Book Ratio
+
+净资产收益率=净利润/净资产=ROE=Return on Equity
+
+PB=P/B,PE=P/E,ROE=E/B
+PE=P/E=(PB*B)/(ROE*B)=PB/ROE
