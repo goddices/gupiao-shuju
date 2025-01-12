@@ -2,9 +2,7 @@ namespace StockStudy
 {
     using Microsoft.Extensions.DependencyInjection;
     using StockStudy.Extensions;
-    using StockStudy.Models;
-    using System.Collections;
-    using System.Collections.Generic;
+    using StockStudy.Models; 
     using System.Diagnostics;
     using System.Linq;
 
@@ -21,9 +19,34 @@ namespace StockStudy
             _serviceProvider = serviceProvider;
         }
 
+        private void WriteAnalysisResult(StockQuote? quote)
+        {
+            var index = 0;
+            if (dollerCostAveragingStrategy.Checked) index = 1;
+            else if (myAnyTestStrategy.Checked) index = 0;
+            var analyst = _serviceProvider.GetRequiredService<IAnalyst>();
+            var code = analyst.StrategyCodeList.ElementAt(index);
+            if (quote != null)
+            {
+                var result = analyst.StrategyAnalyze(code, quote);
+                textboxLogger.WriteLine(result);
+                textboxLogger.WriteLine(result.GetDetails());
+            }
+            else
+                textboxLogger.WriteLine("½âÎö´íÎó");
+        }
+
         private void DynamicInitialize()
         {
             InitTypeSelectOptions();
+        }
+
+        private void InitTypeSelectOptions()
+        {
+            adjustSelect.AddOptions(AdjustPriceType.Pre, AdjustPriceType.Post);
+            periodSelect.AddOptions(PeriodType.Daily, PeriodType.Weekly);
+            adjustSelect.SelectedIndex = 1;
+            periodSelect.SelectedIndex = 1;
         }
 
         private async void ButtonApi_Click(object sender, EventArgs e)
@@ -65,31 +88,6 @@ namespace StockStudy
                 FileName = "python"
             };
             p.Start();
-        }
-
-        private void WriteAnalysisResult(StockQuote? quote)
-        {
-            var index = 0;
-            if (dollerCostAveragingStrategy.Checked) index = 1;
-            else if (myAnyTestStrategy.Checked) index = 0;
-            var analyst = _serviceProvider.GetRequiredService<IAnalyst>();
-            var code = analyst.StrategyCodeList.ElementAt(index);
-            if (quote != null)
-            {
-                var result = analyst.StrategyAnalyze(code, quote);
-                textboxLogger.WriteLine(result);
-                textboxLogger.WriteLine(result.GetDetails());
-            }
-            else
-                textboxLogger.WriteLine("½âÎö´íÎó");
-        }
-
-        private void InitTypeSelectOptions()
-        {
-            adjustSelect.AddOptions(AdjustPriceType.Pre, AdjustPriceType.Post);
-            periodSelect.AddOptions(PeriodType.Daily, PeriodType.Weekly);
-            adjustSelect.SelectedIndex = 1;
-            periodSelect.SelectedIndex = 1;
         }
     }
 }
