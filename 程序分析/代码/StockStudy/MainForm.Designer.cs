@@ -28,7 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            buttonApi = new Button();
             buttonFile = new Button();
             openFileDialog1 = new OpenFileDialog();
             markketSH = new RadioButton();
@@ -38,22 +37,10 @@
             textboxLogger = new TextBox();
             adjustSelect = new ComboBox();
             periodSelect = new ComboBox();
-            groupBox1 = new GroupBox();
-            myAnyTestStrategy = new RadioButton();
-            dollerCostAveragingStrategy = new RadioButton();
+            stragtegyBox = new GroupBox();
             buttonTestPy = new Button();
-            groupBox1.SuspendLayout();
+            button1 = new Button();
             SuspendLayout();
-            // 
-            // buttonApi
-            // 
-            buttonApi.Location = new Point(807, 20);
-            buttonApi.Name = "buttonApi";
-            buttonApi.Size = new Size(94, 29);
-            buttonApi.TabIndex = 0;
-            buttonApi.Text = "接口方式";
-            buttonApi.UseVisualStyleBackColor = true;
-            buttonApi.Click += ButtonApi_Click;
             // 
             // buttonFile
             // 
@@ -108,12 +95,12 @@
             labelCode.TabIndex = 5;
             labelCode.Text = "代码";
             // 
-            // logArea
+            // textboxLogger
             // 
             textboxLogger.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textboxLogger.Location = new Point(25, 146);
             textboxLogger.Multiline = true;
-            textboxLogger.Name = "logArea";
+            textboxLogger.Name = "textboxLogger";
             textboxLogger.ScrollBars = ScrollBars.Vertical;
             textboxLogger.Size = new Size(992, 385);
             textboxLogger.TabIndex = 6;
@@ -136,37 +123,13 @@
             periodSelect.Size = new Size(151, 28);
             periodSelect.TabIndex = 8;
             // 
-            // groupBox1
+            // stragtegyBox
             // 
-            groupBox1.Controls.Add(myAnyTestStrategy);
-            groupBox1.Controls.Add(dollerCostAveragingStrategy);
-            groupBox1.Location = new Point(21, 55);
-            groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(478, 85);
-            groupBox1.TabIndex = 9;
-            groupBox1.TabStop = false;
-            // 
-            // myAnyTestStrategy
-            // 
-            myAnyTestStrategy.AutoSize = true;
-            myAnyTestStrategy.Location = new Point(195, 37);
-            myAnyTestStrategy.Name = "myAnyTestStrategy";
-            myAnyTestStrategy.Size = new Size(150, 24);
-            myAnyTestStrategy.TabIndex = 1;
-            myAnyTestStrategy.Text = "我随便测测的策略";
-            myAnyTestStrategy.UseVisualStyleBackColor = true;
-            // 
-            // dollerCostAveragingStrategy
-            // 
-            dollerCostAveragingStrategy.AutoSize = true;
-            dollerCostAveragingStrategy.Checked = true;
-            dollerCostAveragingStrategy.Location = new Point(25, 37);
-            dollerCostAveragingStrategy.Name = "dollerCostAveragingStrategy";
-            dollerCostAveragingStrategy.Size = new Size(90, 24);
-            dollerCostAveragingStrategy.TabIndex = 0;
-            dollerCostAveragingStrategy.TabStop = true;
-            dollerCostAveragingStrategy.Text = "定投策略";
-            dollerCostAveragingStrategy.UseVisualStyleBackColor = true;
+            stragtegyBox.Location = new Point(21, 55);
+            stragtegyBox.Name = "stragtegyBox";
+            stragtegyBox.Size = new Size(478, 85);
+            stragtegyBox.TabIndex = 9;
+            stragtegyBox.TabStop = false;
             // 
             // buttonTestPy
             // 
@@ -178,13 +141,24 @@
             buttonTestPy.UseVisualStyleBackColor = true;
             buttonTestPy.Click += ButtonTestPy_Click;
             // 
+            // button1
+            // 
+            button1.Location = new Point(815, 20);
+            button1.Name = "button1";
+            button1.Size = new Size(94, 29);
+            button1.TabIndex = 11;
+            button1.Text = "接口方式";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += ButtonApi_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1044, 560);
+            Controls.Add(button1);
             Controls.Add(buttonTestPy);
-            Controls.Add(groupBox1);
+            Controls.Add(stragtegyBox);
             Controls.Add(periodSelect);
             Controls.Add(adjustSelect);
             Controls.Add(textboxLogger);
@@ -193,12 +167,9 @@
             Controls.Add(marketSZ);
             Controls.Add(markketSH);
             Controls.Add(buttonFile);
-            Controls.Add(buttonApi);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "我的量化策略分析工具"; 
-            groupBox1.ResumeLayout(false);
-            groupBox1.PerformLayout();
+            Text = "我的量化策略分析工具";
             ResumeLayout(false);
             PerformLayout();
         }
@@ -215,9 +186,10 @@
         private TextBox textboxLogger;
         private ComboBox adjustSelect;
         private ComboBox periodSelect;
-        private GroupBox groupBox1;
+        private GroupBox stragtegyBox;
         private RadioButton myAnyTestStrategy;
         private RadioButton dollerCostAveragingStrategy;
         private Button buttonTestPy;
+        private Button button1;
     }
 }

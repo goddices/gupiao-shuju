@@ -18,7 +18,7 @@ namespace StockStudy.Core
             _trader = trader;
         }
 
-        public InvestmentSnapshot Regress(string strategyName, StockQuote quote)
+        public InvestmentSnapshot Regress(StockQuote quote)
         {
             var fixedAmount = 1_000M;
             var investedAmount = 0M;
@@ -53,10 +53,10 @@ namespace StockStudy.Core
             }
             var finalAmount = holdings * quote.QuoteLines.Last().Close;
 
-            return new InvestmentSnapshot(strategyName, quote, tradingSnapshots)
+            return new InvestmentSnapshot(Name, quote, tradingSnapshots)
             {
-                CostAmount = investedAmount,
-                FinalAmount = finalAmount,
+                Cost = investedAmount,
+                Final = finalAmount,
             };
         }
     }

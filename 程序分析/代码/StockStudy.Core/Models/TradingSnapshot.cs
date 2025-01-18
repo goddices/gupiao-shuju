@@ -25,7 +25,7 @@ namespace StockStudy.Models
         public override string ToString()
         {
             var details = string.Join(Environment.NewLine, (StockHoldings ?? new StockHolding[0]).Select(e => e.ToString()));
-            return $"在{TradeDate:yyyy-MM-dd} {Environment.NewLine} {details} {Environment.NewLine} 现金余额：{AvailableCash:0.00}";
+            return $"在{TradeDate:yyyy-MM-dd} {details}  现金余额：{AvailableCash:0.00}";
         }
 
     }
@@ -59,7 +59,7 @@ namespace StockStudy.Models
 
         public override string ToString()
         {
-            return $"{TradeDirection.GetDesciption()}{StockName}了{TradeVolume}，价格为 {TradePrice:0.00}，持有{HoldingShares}";
+            return $"{TradeDirection.GetDesciption()}{StockName}了{TradeVolume:0.00}，价格为 {TradePrice:0.00}，持有{HoldingShares:0.00}";
         }
     }
 }

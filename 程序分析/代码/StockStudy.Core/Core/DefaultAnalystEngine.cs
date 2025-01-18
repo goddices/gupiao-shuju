@@ -11,8 +11,9 @@ namespace StockStudy.Core
         {
             _strategyDict = new IStrategyRegression[]
             {
-                serviceProvider.GetRequiredService<AnyTestStrategyRegression>(),
+                serviceProvider.GetRequiredService<TestStrategyRegression>(),
                 serviceProvider.GetRequiredService<DollarCostAveragingStrategyRegression>(),
+                serviceProvider.GetRequiredService<MyPullbackStrategyRegression>(),
             }.ToDictionary(k => k.Name, k => k);
         }
 
@@ -28,7 +29,7 @@ namespace StockStudy.Core
                 throw new ArgumentNullException(nameof(quote));
             }
             var strategy = SelectStrategy(strategyCode);
-            return strategy.Regress(strategy.Name, quote);
+            return strategy.Regress(quote);
         }
 
         private IStrategyRegression SelectStrategy(string code)

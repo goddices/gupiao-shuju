@@ -10,6 +10,6 @@ namespace StockStudy.Models
     {
         string Code { get; }
         string Name { get; }
-        InvestmentSnapshot Regress(string name, StockQuote quote);
+        InvestmentSnapshot Regress(StockQuote quote);
     }
 }

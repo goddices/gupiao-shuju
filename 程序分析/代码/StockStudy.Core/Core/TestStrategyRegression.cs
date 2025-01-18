@@ -7,7 +7,7 @@ namespace StockStudy.Core
     /// <summary>
     /// 随便测测
     /// </summary>
-    public class AnyTestStrategyRegression : IStrategyRegression
+    public class TestStrategyRegression : IStrategyRegression
     {
         private decimal initialCash = 50_0000M;
         private decimal cash = 50_0000M;
@@ -15,16 +15,16 @@ namespace StockStudy.Core
         private readonly ITrader _trader;
         private decimal threshold = 0.02M;
 
-        public string Code => "any";
+        public string Code => "test";
 
-        public string Name => "随便玩玩策略";
+        public string Name => "随便测测";
 
-        public AnyTestStrategyRegression(ITrader trader)
+        public TestStrategyRegression(ITrader trader)
         {
             _trader = trader;
         }
 
-        public InvestmentSnapshot Regress(string strategyName, StockQuote quote)
+        public InvestmentSnapshot Regress(StockQuote quote)
         {
             //在前4个K线 从最高价 下跌 对比收盘价 超过 10%  全部资金买入 收盘价
             //在前4个K线 从最低价 上涨 对比收盘价 超过 10%  全部持仓卖出 收盘价
@@ -75,11 +75,10 @@ namespace StockStudy.Core
                 }
             }
 
-            return new InvestmentSnapshot(strategyName, quote, _tradingSnapshotList)
+            return new InvestmentSnapshot(Name, quote, _tradingSnapshotList)
             {
-                CostAmount = initialCash,
-                FinalAmount = cash + holdings * quote.QuoteLines.Last().Close,
-
+                Cost = initialCash,
+                Final = cash + holdings * quote.QuoteLines.Last().Close,
             };
         }
 
