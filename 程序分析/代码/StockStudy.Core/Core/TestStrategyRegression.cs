@@ -1,6 +1,4 @@
 ﻿using StockStudy.Models;
-using System.Diagnostics;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace StockStudy.Core
 {

@@ -40,6 +40,10 @@
             stragtegyBox = new GroupBox();
             buttonTestPy = new Button();
             button1 = new Button();
+            chartBox = new PictureBox();
+            ButtonZoomOut = new Button();
+            ButtonZoomIn = new Button();
+            ((System.ComponentModel.ISupportInitialize)chartBox).BeginInit();
             SuspendLayout();
             // 
             // buttonFile
@@ -98,11 +102,11 @@
             // textboxLogger
             // 
             textboxLogger.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            textboxLogger.Location = new Point(25, 146);
+            textboxLogger.Location = new Point(25, 495);
             textboxLogger.Multiline = true;
             textboxLogger.Name = "textboxLogger";
             textboxLogger.ScrollBars = ScrollBars.Vertical;
-            textboxLogger.Size = new Size(992, 385);
+            textboxLogger.Size = new Size(992, 126);
             textboxLogger.TabIndex = 6;
             // 
             // adjustSelect
@@ -125,9 +129,9 @@
             // 
             // stragtegyBox
             // 
-            stragtegyBox.Location = new Point(21, 55);
+            stragtegyBox.Location = new Point(103, 55);
             stragtegyBox.Name = "stragtegyBox";
-            stragtegyBox.Size = new Size(478, 85);
+            stragtegyBox.Size = new Size(584, 68);
             stragtegyBox.TabIndex = 9;
             stragtegyBox.TabStop = false;
             // 
@@ -151,11 +155,43 @@
             button1.UseVisualStyleBackColor = true;
             button1.Click += ButtonApi_Click;
             // 
+            // chartBox
+            // 
+            chartBox.Location = new Point(25, 177);
+            chartBox.Name = "chartBox";
+            chartBox.Size = new Size(992, 299);
+            chartBox.TabIndex = 12;
+            chartBox.TabStop = false;
+            chartBox.Paint += ChartBox_Paint;
+            // 
+            // ButtonZoomOut
+            // 
+            ButtonZoomOut.Location = new Point(25, 142);
+            ButtonZoomOut.Name = "ButtonZoomOut";
+            ButtonZoomOut.Size = new Size(28, 29);
+            ButtonZoomOut.TabIndex = 13;
+            ButtonZoomOut.Text = "-";
+            ButtonZoomOut.UseVisualStyleBackColor = true;
+            ButtonZoomOut.Click += ButtonZoomOut_Click;
+            // 
+            // ButtonZoomIn
+            // 
+            ButtonZoomIn.Location = new Point(59, 142);
+            ButtonZoomIn.Name = "ButtonZoomIn";
+            ButtonZoomIn.Size = new Size(28, 29);
+            ButtonZoomIn.TabIndex = 14;
+            ButtonZoomIn.Text = "+";
+            ButtonZoomIn.UseVisualStyleBackColor = true;
+            ButtonZoomIn.Click += ButtonZoomIn_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1044, 560);
+            ClientSize = new Size(1044, 633);
+            Controls.Add(ButtonZoomIn);
+            Controls.Add(ButtonZoomOut);
+            Controls.Add(chartBox);
             Controls.Add(button1);
             Controls.Add(buttonTestPy);
             Controls.Add(stragtegyBox);
@@ -170,6 +206,8 @@
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "我的量化策略分析工具";
+            Load += MainForm_Load;
+            ((System.ComponentModel.ISupportInitialize)chartBox).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -191,5 +229,8 @@
         private RadioButton dollerCostAveragingStrategy;
         private Button buttonTestPy;
         private Button button1;
+        private PictureBox chartBox;
+        private Button ButtonZoomOut;
+        private Button ButtonZoomIn;
     }
 }

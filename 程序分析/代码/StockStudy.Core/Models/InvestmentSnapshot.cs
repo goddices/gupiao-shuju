@@ -35,7 +35,7 @@
         public StockQuoteLine First { get; set; }
         public StockQuoteLine Last { get; set; }
 
-        public decimal? Holdings => TradingSnapshots?.Last()?.StockHoldings?.First()?.HoldingShares;
+        public decimal? Holdings => TradingSnapshots.Last()?.StockHoldings?.First()?.HoldingShares;
 
         public decimal BaseEarnings => Holdings * (Last.Close - First.Close) ?? 0;
 
@@ -44,10 +44,10 @@
 
         public override string ToString()
         {
-            return $"采用{StrategyName} 投资{StockName} {TotalDays}天（{(TotalDays / 365M).ToString("0.00")}年), " +
-                $"赚了{Earnings.ToString("0.000")}, 收益率 {(Rate * 100).ToString("0.000")}%, {Environment.NewLine}" +
-                $"持仓{Holdings:0.000} 市值 {Final.ToString("0.000")}, 成本 {Cost.ToString("0.000")} {Environment.NewLine}" +
-                $"{StockName} 期始价格{First.Close:0.000}，期末价格{Last.Close:0.000},原本收益 {BaseEarnings:0.000}  超额收益 {OverEarnings:0.000}";
+            return $"采用 {StrategyName} 投资{StockName} {TotalDays}天（{(TotalDays / 365M):0.00}年), " +
+                $"赚了{Earnings:0.000)}, 收益率 {(Rate * 100):0.000)}%, {Environment.NewLine}" +
+                $"持仓{Holdings:0.000} 市值 {Final:0.000}, 成本 {Cost:0.000)} {Environment.NewLine}" +
+                $"期始价格{First.Close:0.000}，期末价格{Last.Close:0.000},基准收益 {BaseEarnings:0.000}  超额收益 {OverEarnings:0.000}";
         }
 
         public IEnumerable<string> GetDetails()

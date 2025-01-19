@@ -1,24 +1,23 @@
 namespace StockStudy
 {
     using Microsoft.Extensions.DependencyInjection;
+    using StockStudy.Drawing2D;
     using StockStudy.Extensions;
     using StockStudy.Models;
     using System.Diagnostics;
-    using System.Linq;
 
     public partial class MainForm : Form
     {
         private readonly IQuoteReader _quoteReader;
-        private readonly IServiceProvider _serviceProvider;
-        private IAnalyst _analyst;
+        private readonly IAnalyst _analyst;
+        private CandleStickChart? _chart;
 
-        public MainForm(IQuoteReader quoteReader, IServiceProvider serviceProvider) : base()
+        public MainForm(IQuoteReader quoteReader, IAnalyst analyst) : base()
         {
-            InitializeComponent();
             _quoteReader = quoteReader;
-            _serviceProvider = serviceProvider;
-            _analyst = _serviceProvider.GetRequiredService<IAnalyst>();
-            DynamicLoad();
+            _analyst = analyst;
+            InitializeComponent();
+            DynamicLoadControls();
         }
 
         private void WriteAnalysisResult(StockQuote? quote)
@@ -44,19 +43,28 @@ namespace StockStudy
             {
                 var result = _analyst.StrategyAnalyze(code, quote);
                 textboxLogger.WriteLine(result);
-                textboxLogger.WriteLine(result.GetDetails());
+                ///textboxLogger.WriteLine(result.GetDetails());
+                _chart!.Series = quote.QuoteLines.Select(e => new CandleStickEntry
+                {
+                    High = e.High,
+                    Low = e.Low,
+                    Open = e.Open,
+                    TradeDate = e.TradeDate,
+                    Close = e.Close,
+                });
+                _chart!.DrawCandleStick();
             }
             else
                 textboxLogger.WriteLine("½âÎö´íÎó");
         }
 
-        private void DynamicLoad()
+        private void DynamicLoadControls()
         {
-            InitTypeSelectOptions();
+            LoadTypeSelections();
             LoadStrategySelections();
         }
 
-        private void InitTypeSelectOptions()
+        private void LoadTypeSelections()
         {
             adjustSelect.AddOptions(AdjustPriceType.Pre, AdjustPriceType.Post);
             periodSelect.AddOptions(PeriodType.Daily, PeriodType.Weekly);
@@ -119,6 +127,28 @@ namespace StockStudy
                 FileName = "python"
             };
             p.Start();
+        }
+
+        private void ChartBox_Paint(object sender, PaintEventArgs e)
+        {
+            _chart!.DrawCandleStick();
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            _chart = new CandleStickChart(this.BackColor, chartBox.CreateGraphics());
+        }
+
+        private void ButtonZoomOut_Click(object sender, EventArgs e)
+        {
+            _chart!.MaxShowSeries += 20;
+            _chart!.DrawCandleStick();
+        }
+
+        private void ButtonZoomIn_Click(object sender, EventArgs e)
+        {
+            _chart!.MaxShowSeries -= 20;
+            _chart!.DrawCandleStick();
         }
     }
 }
