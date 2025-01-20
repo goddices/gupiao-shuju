@@ -8,6 +8,9 @@ namespace StockStudy.Drawing2D
         private readonly Graphics _graphics;
         private readonly RectangleF _area;
         private decimal _maxPrice, _minPrice;
+        private Brush _redBrush = new SolidBrush(Color.Red);
+        private Brush _greenBrush = new SolidBrush(Color.Green);
+        private Brush _blueBrush = new SolidBrush(Color.Blue);
 
         public CandleStickChart(Color backColor, Graphics graphics)
         {
@@ -20,14 +23,11 @@ namespace StockStudy.Drawing2D
 
         public IEnumerable<CandleStickEntry>? Series { get; set; }
 
+        public IEnumerable<BuySellMark>? BuySellMarks { get; set; }
+
         public void DrawCandleStick()
         {
             DrawSeries();
-        }
-
-        public void DrawBuySellPoints()
-        {
-
         }
 
         private void DrawSeries()
@@ -50,8 +50,9 @@ namespace StockStudy.Drawing2D
 
         private void DrawEntry(CandleStickEntry entry)
         {
-            var brush = new SolidBrush(IsRaised(entry) ? Color.Red : Color.Green);
-            DrawCandleStick(brush, entry);
+            var brush = IsRaised(entry) ? _redBrush : _greenBrush;
+            BuySellMark? mark = BuySellMarks?.FirstOrDefault(e => e.DateTime.Date == entry.TradeDate.Date);
+            DrawCandleStick(brush, entry, mark);
         }
 
         private static bool IsRaised(CandleStickEntry entry)
@@ -69,7 +70,7 @@ namespace StockStudy.Drawing2D
             _graphics.DrawLine(new Pen(brush, width), p1, p2);
         }
 
-        private void DrawCandleStick(Brush brush, CandleStickEntry entry)
+        private void DrawCandleStick(Brush brush, CandleStickEntry entry, BuySellMark? mark)
         {
             var baseWidth = _area.Width / MaxShowSeries;
             var width = baseWidth - 1;
@@ -84,6 +85,19 @@ namespace StockStudy.Drawing2D
             var high = (float)(((_maxPrice - entry.High) / priceHeight)) * _area.Height;
             var low = (float)(((_maxPrice - entry.Low) / priceHeight)) * _area.Height;
             DrawLine(brush, 1, new PointF(middle, high), new PointF(middle, low));
+
+            if (mark != null)
+            {
+                var word = mark.Direction == BuySellMark.BuySell.Buy ? "B" : "S";
+                var color = mark.Direction == BuySellMark.BuySell.Buy ? Color.Red : Color.Blue;
+                var wordBrush = mark.Direction == BuySellMark.BuySell.Buy ? _redBrush : _blueBrush;
+                var priceTop = (float)(((_maxPrice - mark.Price) / priceHeight)) * _area.Height;
+
+                Pen blackPen = new Pen(color, 1);
+                // blackPen.DashPattern = new float[] { 1 };
+                _graphics.DrawLine(blackPen, new PointF(width, priceTop), new PointF(width, top + height));
+                _graphics.DrawString(word, new Font("Consolas", 9f), wordBrush, width, top + height);
+            }
         }
     }
 }
