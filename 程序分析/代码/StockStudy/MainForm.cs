@@ -43,7 +43,13 @@ namespace StockStudy
             {
                 var result = _analyst.StrategyAnalyze(code, quote);
                 textboxLogger.WriteLine(result);
-                ///textboxLogger.WriteLine(result.GetDetails());
+                textboxLogger.WriteLine(result.GetDetails());
+                _chart!.BuySellMarks = result.TradingSnapshots.Select(e => new BuySellMark
+                {
+                    DateTime = e.TradeDate,
+                    Direction = e.StockHoldings?.FirstOrDefault()?.TradeDirection == TransactionDirection.Buy ? BuySellMark.BuySell.Buy : BuySellMark.BuySell.Sell,
+                    Price = e.StockHoldings?.FirstOrDefault()?.TradePrice ?? 0,
+                });
                 _chart!.Series = quote.QuoteLines.Select(e => new CandleStickEntry
                 {
                     High = e.High,

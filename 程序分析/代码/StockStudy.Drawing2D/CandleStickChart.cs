@@ -78,10 +78,11 @@ namespace StockStudy.Drawing2D
             var priceHeight = _maxPrice - _minPrice;
             var top = (float)(((_maxPrice - (IsRaised(entry) ? entry.Close : entry.Open)) / priceHeight)) * _area.Height;
             var height = (float)(((Math.Abs(entry.Close - entry.Open)) / priceHeight)) * _area.Height;
+            if (height == 0) height = 1;
             var rect = new RectangleF(left, top, width, height);
             DrawRectangle(brush, rect);
 
-            var middle = entry.CurrentIndex * baseWidth + 0.5f * baseWidth - 1;
+            var middle = entry.CurrentIndex * baseWidth + 0.5f * baseWidth - 1.5f;
             var high = (float)(((_maxPrice - entry.High) / priceHeight)) * _area.Height;
             var low = (float)(((_maxPrice - entry.Low) / priceHeight)) * _area.Height;
             DrawLine(brush, 1, new PointF(middle, high), new PointF(middle, low));
@@ -93,10 +94,10 @@ namespace StockStudy.Drawing2D
                 var wordBrush = mark.Direction == BuySellMark.BuySell.Buy ? _redBrush : _blueBrush;
                 var priceTop = (float)(((_maxPrice - mark.Price) / priceHeight)) * _area.Height;
 
-                Pen blackPen = new Pen(color, 1);
+                //Pen blackPen = new Pen(color, 1);
                 // blackPen.DashPattern = new float[] { 1 };
-                _graphics.DrawLine(blackPen, new PointF(width, priceTop), new PointF(width, top + height));
-                _graphics.DrawString(word, new Font("Consolas", 9f), wordBrush, width, top + height);
+                //_graphics.DrawLine(blackPen, new PointF(middle, priceTop), new PointF(middle, top + height));
+                _graphics.DrawString(word, new Font("Consolas", 9f), wordBrush, left, top + height);
             }
         }
     }

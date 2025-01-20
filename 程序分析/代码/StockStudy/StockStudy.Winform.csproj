@@ -12,6 +12,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\StockStudy.Core\StockStudy.Core.csproj" />
+	  <ProjectReference Include="..\StockStudy.Drawing2D\StockStudy.Drawing2D.csproj" />
 	</ItemGroup>
 
 
