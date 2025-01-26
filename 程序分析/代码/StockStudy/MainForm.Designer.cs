@@ -43,6 +43,7 @@
             chartBox = new PictureBox();
             ButtonZoomOut = new Button();
             ButtonZoomIn = new Button();
+            labelFocusQuote = new Label();
             ((System.ComponentModel.ISupportInitialize)chartBox).BeginInit();
             SuspendLayout();
             // 
@@ -163,6 +164,7 @@
             chartBox.TabIndex = 12;
             chartBox.TabStop = false;
             chartBox.Paint += ChartBox_Paint;
+            chartBox.MouseMove += ChartBox_MouseMove;
             // 
             // ButtonZoomOut
             // 
@@ -184,11 +186,20 @@
             ButtonZoomIn.UseVisualStyleBackColor = true;
             ButtonZoomIn.Click += ButtonZoomIn_Click;
             // 
+            // labelFocusQuote
+            // 
+            labelFocusQuote.AutoSize = true;
+            labelFocusQuote.Location = new Point(218, 148);
+            labelFocusQuote.Name = "labelFocusQuote";
+            labelFocusQuote.Size = new Size(0, 20);
+            labelFocusQuote.TabIndex = 15;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1044, 633);
+            Controls.Add(labelFocusQuote);
             Controls.Add(ButtonZoomIn);
             Controls.Add(ButtonZoomOut);
             Controls.Add(chartBox);
@@ -232,5 +243,6 @@
         private PictureBox chartBox;
         private Button ButtonZoomOut;
         private Button ButtonZoomIn;
+        private Label labelFocusQuote;
     }
 }

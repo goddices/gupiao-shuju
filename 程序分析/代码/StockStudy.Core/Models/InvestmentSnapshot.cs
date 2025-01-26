@@ -2,11 +2,6 @@
 {
     public class InvestmentSnapshot
     {
-        public InvestmentSnapshot()
-        {
-
-        }
-
         public InvestmentSnapshot(string strategyName, StockQuote quote, IEnumerable<TradingSnapshot> tradingSnapshots)
         {
             StockName = quote.StockName;
@@ -39,15 +34,15 @@
 
         public decimal BaseEarnings => Holdings * (Last.Close - First.Close) ?? 0;
 
-        public decimal OverEarnings => Final - BaseEarnings;
+        public decimal OverEarnings => Earnings - BaseEarnings;
 
 
         public override string ToString()
         {
-            return $"采用 {StrategyName} 投资{StockName} {TotalDays}天（{(TotalDays / 365M):0.00}年), " +
-                $"赚了{Earnings:0.000)}, 收益率 {(Rate * 100):0.000)}%, {Environment.NewLine}" +
-                $"持仓{Holdings:0.000} 市值 {Final:0.000}, 成本 {Cost:0.000)} {Environment.NewLine}" +
-                $"期始价格{First.Close:0.000}，期末价格{Last.Close:0.000},基准收益 {BaseEarnings:0.000}  超额收益 {OverEarnings:0.000}";
+            return $"投资{StockName} {TotalDays}天({(TotalDays / 365M):0.00}年), 持仓: {Holdings:0.000}, 市值: {Final:0.000}, 成本 {Cost:0.000}  {Environment.NewLine}" +
+                $"期初价格: {First.Close:0.000}，期末价格: {Last.Close:0.000}, 基准收益: {BaseEarnings:0.000} {Environment.NewLine}" +
+                $"采用 {StrategyName} 赚了{Earnings:0.000}, 收益率: {(Rate * 100):0.000}%, 超额收益: {OverEarnings:0.000},超额收益率:{OverEarnings / BaseEarnings:0.000%} ";
+
         }
 
         public IEnumerable<string> GetDetails()

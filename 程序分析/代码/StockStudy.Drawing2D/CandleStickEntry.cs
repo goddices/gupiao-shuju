@@ -33,5 +33,10 @@ namespace StockStudy.Drawing2D
         /// 最低
         /// </summary>
         public decimal Low { get; set; }
+
+        public override string ToString()
+        {
+            return $"{TradeDate:yyyy-MM-dd} 开:{Open} 高:{High} 低:{Low} 收:{Close}";
+        }
     }
 }

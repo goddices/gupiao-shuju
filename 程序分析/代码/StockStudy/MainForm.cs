@@ -29,6 +29,7 @@ namespace StockStudy
                 if (ctrl is RadioButton rdb && rdb.Checked)
                 {
                     code = ctrl.Text;
+                    break;
                 }
             }
 
@@ -69,6 +70,12 @@ namespace StockStudy
             LoadTypeSelections();
             LoadStrategySelections();
         }
+
+        private void LoadChart()
+        {
+            _chart!.FocusOn += ChartFocusOn;
+        }
+
 
         private void LoadTypeSelections()
         {
@@ -143,6 +150,7 @@ namespace StockStudy
         private void MainForm_Load(object sender, EventArgs e)
         {
             _chart = new CandleStickChart(this.BackColor, chartBox.CreateGraphics());
+            LoadChart();
         }
 
         private void ButtonZoomOut_Click(object sender, EventArgs e)
@@ -155,6 +163,15 @@ namespace StockStudy
         {
             _chart!.MaxShowSeries -= 20;
             _chart!.DrawCandleStick();
+        }
+
+        private void ChartBox_MouseMove(object sender, MouseEventArgs e)
+        {
+            _chart!.FocusOneStick(e.Location);
+        }
+        private void ChartFocusOn(object? sender, CandleStickChart.FocusOnEventArgs e)
+        {
+            labelFocusQuote.Text = $"{e.Entry?.ToString()}";
         }
     }
 }

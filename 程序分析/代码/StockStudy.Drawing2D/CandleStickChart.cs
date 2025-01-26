@@ -1,4 +1,5 @@
 ﻿using System.Drawing;
+using System.Reflection;
 
 namespace StockStudy.Drawing2D
 {
@@ -8,15 +9,26 @@ namespace StockStudy.Drawing2D
         private readonly Graphics _graphics;
         private readonly RectangleF _area;
         private decimal _maxPrice, _minPrice;
-        private Brush _redBrush = new SolidBrush(Color.Red);
-        private Brush _greenBrush = new SolidBrush(Color.Green);
-        private Brush _blueBrush = new SolidBrush(Color.Blue);
+        private int previousFocusIndex = -1;
+        private readonly Brush _redBrush = new SolidBrush(Color.Red);
+        private readonly Brush _greenBrush = new SolidBrush(Color.Green);
+        private readonly Brush _blueBrush = new SolidBrush(Color.Blue);
+        private readonly Brush _blackBrush = new SolidBrush(Color.Black);
+        private readonly Brush _backBrush;
+        public event EventHandler<FocusOnEventArgs> FocusOn;
+
+        public class FocusOnEventArgs : EventArgs
+        {
+            public BuySellMark? Mark { get; internal set; }
+            public CandleStickEntry? Entry { get; internal set; }
+        }
 
         public CandleStickChart(Color backColor, Graphics graphics)
         {
             _backColor = backColor;
             _graphics = graphics;
             _area = _graphics.VisibleClipBounds;
+            _backBrush = new SolidBrush(_backColor);
         }
 
         public int MaxShowSeries { get; set; } = 60;
@@ -54,6 +66,7 @@ namespace StockStudy.Drawing2D
             BuySellMark? mark = BuySellMarks?.FirstOrDefault(e => e.DateTime.Date == entry.TradeDate.Date);
             DrawCandleStick(brush, entry, mark);
         }
+
 
         private static bool IsRaised(CandleStickEntry entry)
         {
@@ -98,6 +111,34 @@ namespace StockStudy.Drawing2D
                 // blackPen.DashPattern = new float[] { 1 };
                 //_graphics.DrawLine(blackPen, new PointF(middle, priceTop), new PointF(middle, top + height));
                 _graphics.DrawString(word, new Font("Consolas", 9f), wordBrush, left, top + height);
+            }
+        }
+
+        public void FocusOneStick(Point location)
+        {
+            if (Series != null)
+            {
+
+                var baseWidth = _area.Width / MaxShowSeries;
+                var focusIndex = (int)(location.X / baseWidth);
+                if (previousFocusIndex != focusIndex)
+                {
+                    if (previousFocusIndex != -1)
+                    {
+                        var showSeries = Series.OrderByDescending(e => e.TradeDate).Take(MaxShowSeries)
+                            .Select((e, i) => { e.CurrentIndex = MaxShowSeries - 1 - i; return e; }).ToList();
+
+                        var target = showSeries.First(e => e.CurrentIndex == previousFocusIndex);
+                        var previousMiddle = previousFocusIndex * baseWidth + 0.5f * baseWidth - 1.5f;
+                        DrawLine(_backBrush, 1, new PointF(previousMiddle, 0), new PointF(previousMiddle, _area.Height));
+                        DrawEntry(target);
+                        FocusOn?.Invoke(this, new FocusOnEventArgs { Entry = target });
+                    }
+                    var middle = focusIndex * baseWidth + 0.5f * baseWidth - 1.5f;
+                    DrawLine(_blackBrush, 1, new PointF(middle, 0), new PointF(middle, _area.Height));
+
+                    previousFocusIndex = focusIndex;
+                }
             }
         }
     }

@@ -40,7 +40,7 @@ namespace StockStudy.Core
                     Buy(quote.StockName, lineT.TradeDate, buyPrice, buyVolumn);
                 }
 
-                var longSignal = (lineT.Close - lineT2.Close) / lineT.Close >= pullbackPencentage;
+                var longSignal = (lineT2.Close - lineT.Close) / lineT.Close >= pullbackPencentage;
                 if (longSignal)
                 {
                     Buy(quote.StockName, lineT.TradeDate, buyPrice, buyVolumn);
