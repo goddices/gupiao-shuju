@@ -164,6 +164,7 @@
             chartBox.TabIndex = 12;
             chartBox.TabStop = false;
             chartBox.Paint += ChartBox_Paint;
+            chartBox.MouseLeave += ChartBox_MouseLeave;
             chartBox.MouseMove += ChartBox_MouseMove;
             // 
             // ButtonZoomOut

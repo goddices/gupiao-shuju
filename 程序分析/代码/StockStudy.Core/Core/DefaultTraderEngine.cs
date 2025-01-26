@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using StockStudy.Models;
+﻿using StockStudy.Models;
 
 namespace StockStudy.Core
 {

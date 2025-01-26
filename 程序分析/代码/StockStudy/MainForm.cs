@@ -169,9 +169,16 @@ namespace StockStudy
         {
             _chart!.FocusOneStick(e.Location);
         }
+
         private void ChartFocusOn(object? sender, CandleStickChart.FocusOnEventArgs e)
         {
             labelFocusQuote.Text = $"{e.Entry?.ToString()}";
+        }
+
+        private void ChartBox_MouseLeave(object sender, EventArgs e)
+        {
+            labelFocusQuote.Text = "";
+            _chart!.DrawCandleStick();
         }
     }
 }
