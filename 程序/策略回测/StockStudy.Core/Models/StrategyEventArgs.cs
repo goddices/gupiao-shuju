@@ -6,10 +6,7 @@ using System.Threading.Tasks;
 
 namespace StockStudy.Models
 {
-    public interface IStrategyRegression
+    public class StrategyEventArgs
     {
-        string Code { get; }
-        string Name { get; }
-        InvestmentSnapshot Regress(StockQuote quote);
     }
 }

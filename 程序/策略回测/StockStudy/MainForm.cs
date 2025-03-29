@@ -42,14 +42,14 @@ namespace StockStudy
 
             if (quote != null)
             {
-                var result = _analyst.StrategyAnalyze(code, quote);
+                var result = _analyst.Analyze(code, quote);
                 textboxLogger.WriteLine(result);
                 textboxLogger.WriteLine(result.GetDetails());
                 _chart!.BuySellMarks = result.TradingSnapshots.Select(e => new BuySellMark
                 {
                     DateTime = e.TradeDate,
-                    Direction = e.StockHoldings?.FirstOrDefault()?.TradeDirection == TransactionDirection.Buy ? BuySellMark.BuySell.Buy : BuySellMark.BuySell.Sell,
-                    Price = e.StockHoldings?.FirstOrDefault()?.TradePrice ?? 0,
+                    Direction = e.TradeDirection == TransactionDirection.Buy ? BuySellMark.BuySell.Buy : BuySellMark.BuySell.Sell,
+                    Price = e.TradePrice,
                 });
                 _chart!.Series = quote.QuoteLines.Select(e => new CandleStickEntry
                 {
@@ -88,7 +88,7 @@ namespace StockStudy
         private void LoadStrategySelections()
         {
             var idx = 0;
-            foreach (var strategy in _analyst.StrategyCodeList)
+            foreach (var strategy in _analyst.StrategyList)
             {
                 var rdb = new RadioButton
                 {

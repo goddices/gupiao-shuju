@@ -14,6 +14,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "record", "record", "{FD3553
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockStudy.Drawing2D", "StockStudy.Drawing2D\StockStudy.Drawing2D.csproj", "{5DF3F529-D4A2-44FB-ADF0-B3708067A99B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockStudy.Tests", "StockStudy.Tests\StockStudy.Tests.csproj", "{AA865863-34B2-4139-80DC-EF35E24EA4F7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{5DF3F529-D4A2-44FB-ADF0-B3708067A99B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5DF3F529-D4A2-44FB-ADF0-B3708067A99B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5DF3F529-D4A2-44FB-ADF0-B3708067A99B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA865863-34B2-4139-80DC-EF35E24EA4F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA865863-34B2-4139-80DC-EF35E24EA4F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA865863-34B2-4139-80DC-EF35E24EA4F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA865863-34B2-4139-80DC-EF35E24EA4F7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

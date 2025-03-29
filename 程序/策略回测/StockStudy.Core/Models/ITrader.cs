@@ -2,13 +2,16 @@
 {
     public interface ITrader
     {
-        TransactionRecord DoBuy(string target, DateTime tradingDate, decimal price, decimal volume);
+        TransactionRecord? BuySingleTarget(string target, DateTime tradingDate, decimal price, decimal volume);
 
-        TransactionRecord? TryBuy(string target, DateTime tradingDate, decimal availableCash, decimal price);
+        TransactionRecord? SellSingleTarget(string target, DateTime tradingDate, decimal price, decimal volume);
 
-        TransactionRecord DoSell(string target, DateTime tradingDate, decimal price, decimal volume);
+        decimal EstimateBuyingAmount(decimal price, decimal volume);
+        decimal EstimateSellingAmount(decimal price, decimal volume);
 
-        TransactionRecord? TrySell(string target, DateTime tradingDate, decimal availableHoldings, decimal price);
+        IDictionary<string, decimal> Holdings { get; }
+        decimal AvailableCash { get; set; }
 
+        void SetInitialParameters(decimal availableCash, decimal buyLossFactor, decimal sellLossFactor);
     }
 }

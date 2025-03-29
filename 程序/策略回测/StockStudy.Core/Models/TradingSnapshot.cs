@@ -16,22 +16,6 @@ namespace StockStudy.Models
         /// 现金余额
         /// </summary>
         public decimal AvailableCash { get; set; }
-
-        /// <summary>
-        /// 持有
-        /// </summary>
-        public IEnumerable<StockHolding>? StockHoldings { get; set; }
-
-        public override string ToString()
-        {
-            var details = string.Join(Environment.NewLine, (StockHoldings ?? new StockHolding[0]).Select(e => e.ToString()));
-            return $"在{TradeDate:yyyy-MM-dd} {details}  现金余额：{AvailableCash:0.00}";
-        }
-
-    }
-
-    public class StockHolding
-    {
         /// <summary>
         /// 持有股票名
         /// </summary>
@@ -57,9 +41,17 @@ namespace StockStudy.Models
         /// </summary>
         public TransactionDirection TradeDirection { get; set; }
 
-        public override string ToString()
+        public string GetDetail()
         {
             return $"{TradeDirection.GetDesciption()}{StockName}了{TradeVolume:0.00}，价格为 {TradePrice:0.00}，持有{HoldingShares:0.00}";
         }
+
+
+        public override string ToString()
+        {
+            var details = string.Join(Environment.NewLine, GetDetail());
+            return $"在{TradeDate:yyyy-MM-dd} {details}  现金余额：{AvailableCash:0.00}";
+        }
+
     }
 }
