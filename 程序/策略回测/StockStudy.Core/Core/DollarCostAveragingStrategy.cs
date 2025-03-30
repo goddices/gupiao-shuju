@@ -8,7 +8,7 @@ namespace StockStudy.Core
     public class DollarCostAveragingStrategy : AbstractStrategy, IRegressionStrategy
     {
         public override string Code => "dca";
-        public override string Name => " 定投策略";
+        public override string Name => "定投策略";
 
         public DollarCostAveragingStrategy(DefaultEngine engine) : base(engine)
         {

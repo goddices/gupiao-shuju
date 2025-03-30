@@ -6,6 +6,8 @@
 
         decimal AvailableCash { get; set; }
 
+        decimal InitialCash { get; set; }
+
         void Reset(); 
 
         void SetInitialParameters(decimal availableCash, decimal buyLossFactor, decimal sellLossFactor);

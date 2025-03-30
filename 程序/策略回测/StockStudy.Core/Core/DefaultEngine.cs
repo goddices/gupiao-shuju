@@ -56,9 +56,10 @@ namespace StockStudy.Core
         {
             return new InvestmentSummary(strategyName, quote, _tradingSnapshots)
             {
-                Cost = _transactionList.Sum(e => e.Amount),
+                Cost = _transactionList.Sum(e => e.Amount)+ _trader.AvailableCash,
                 Holdings = _trader.Holdings[quote.StockName],
                 AvailableCash = _trader.AvailableCash,
+                InitialCash = _trader.InitialCash,
             };
         }
 

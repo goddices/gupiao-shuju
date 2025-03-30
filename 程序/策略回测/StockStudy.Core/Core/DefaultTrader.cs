@@ -13,6 +13,8 @@ namespace StockStudy.Core
 
         public decimal AvailableCash { get => _availableCash; set => _availableCash = value; }
 
+        public decimal InitialCash { get; set; }
+
         public void Reset()
         {
             _availableCash = 0;
