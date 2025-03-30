@@ -2,14 +2,14 @@
 
 namespace StockStudy.Core
 {
-    public class DefaultTradingEngine
+    public class DefaultEngine
     {
         protected readonly ITrader _trader;
 
         protected readonly IList<TradingSnapshot> _tradingSnapshots = new List<TradingSnapshot>();
         protected readonly IList<TransactionRecord> _transactionList = new List<TransactionRecord>();
 
-        public DefaultTradingEngine(ITrader trader)
+        public DefaultEngine(ITrader trader)
         {
             _trader = trader;
         }
@@ -57,7 +57,8 @@ namespace StockStudy.Core
             return new InvestmentSummary(strategyName, quote, _tradingSnapshots)
             {
                 Cost = _transactionList.Sum(e => e.Amount),
-                HoldingValue = _trader.Holdings[quote.StockName] * quote.QuoteLines.Last().Close,
+                Holdings = _trader.Holdings[quote.StockName],
+                AvailableCash = _trader.AvailableCash,
             };
         }
 
@@ -81,6 +82,13 @@ namespace StockStudy.Core
         {
             var total = _trader.EstimateSellingAmount(price, volume);
             Withdraw(total);
+        }
+
+        public void Reset()
+        {
+            _trader.Reset();
+            _tradingSnapshots.Clear();
+            _transactionList.Clear();
         }
     }
 }

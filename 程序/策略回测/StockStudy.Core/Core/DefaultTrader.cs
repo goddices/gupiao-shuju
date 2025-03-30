@@ -10,7 +10,14 @@ namespace StockStudy.Core
         private decimal _sellLossFactor;
 
         public IDictionary<string, decimal> Holdings => _holdings;
+
         public decimal AvailableCash { get => _availableCash; set => _availableCash = value; }
+
+        public void Reset()
+        {
+            _availableCash = 0;
+            _holdings.Clear();
+        }
 
         public void SetInitialParameters(decimal availableCash, decimal buyLossFactor, decimal sellLossFactor)
         {

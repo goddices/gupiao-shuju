@@ -11,6 +11,8 @@ namespace StockStudy
         private readonly IQuoteReader _quoteReader;
         private readonly IAnalyst _analyst;
         private CandleStickChart? _chart;
+        private IDictionary<string, InvestmentSummary>? _results;
+        private StockQuote? _quote;
 
         public MainForm(IQuoteReader quoteReader, IAnalyst analyst) : base()
         {
@@ -22,44 +24,15 @@ namespace StockStudy
 
         private void WriteAnalysisResult(StockQuote? quote)
         {
-            var code = string.Empty;
-            for (var idx = 0; idx < stragtegyBox.Controls.Count; idx++)
-            {
-                var ctrl = stragtegyBox.Controls[idx];
-                if (ctrl is RadioButton rdb && rdb.Checked)
-                {
-                    code = ctrl.Text;
-                    break;
-                }
-            }
-
-
-            if (string.IsNullOrWhiteSpace(code))
-            {
-                MessageBox.Show("必须选择一个策略");
-                return;
-            }
-
             if (quote != null)
             {
-                var result = _analyst.Analyze(code, quote);
-                textboxLogger.WriteLine(result);
-                textboxLogger.WriteLine(result.GetDetails());
-                _chart!.BuySellMarks = result.TradingSnapshots.Select(e => new BuySellMark
+                _quote = quote;
+                _results = _analyst.Analyze(quote);
+                foreach (var result in _results.Values)
                 {
-                    DateTime = e.TradeDate,
-                    Direction = e.TradeDirection == TransactionDirection.Buy ? BuySellMark.BuySell.Buy : BuySellMark.BuySell.Sell,
-                    Price = e.TradePrice,
-                });
-                _chart!.Series = quote.QuoteLines.Select(e => new CandleStickEntry
-                {
-                    High = e.High,
-                    Low = e.Low,
-                    Open = e.Open,
-                    TradeDate = e.TradeDate,
-                    Close = e.Close,
-                });
-                _chart!.DrawCandleStick();
+                    textboxLogger.WriteLine(result?.GetSummary());
+                    //textboxLogger.WriteLine(result.GetDetails());
+                }
             }
             else
                 textboxLogger.WriteLine("解析错误");
@@ -76,7 +49,6 @@ namespace StockStudy
             _chart!.FocusOn += ChartFocusOn;
         }
 
-
         private void LoadTypeSelections()
         {
             adjustSelect.AddOptions(AdjustPriceType.Pre, AdjustPriceType.Post);
@@ -88,16 +60,45 @@ namespace StockStudy
         private void LoadStrategySelections()
         {
             var idx = 0;
-            foreach (var strategy in _analyst.StrategyList)
+            foreach (var strategy in _analyst.StrategyNames)
             {
                 var rdb = new RadioButton
                 {
                     Text = strategy
                 };
+                rdb.CheckedChanged += StrategyRadioButton_CheckedChanged;
                 rdb.Left = idx * rdb.Width + 10;
                 rdb.Top = stragtegyBox.Height / 2 - rdb.Height / 2;
                 stragtegyBox.Controls.Add(rdb);
                 idx++;
+            }
+        }
+
+        private void StrategyRadioButton_CheckedChanged(object? sender, EventArgs e)
+        {
+            if (sender is not null && sender is RadioButton rdb && _results is not null && _quote is not null)
+            {
+                var code = rdb.Text;
+                if (string.IsNullOrWhiteSpace(code) || !_results.ContainsKey(code))
+                {
+                    MessageBox.Show("必须选择一个策略");
+                    return;
+                }
+                _chart!.BuySellMarks = _results[code].TradingSnapshots.Select(e => new BuySellMark
+                {
+                    DateTime = e.TradeDate,
+                    Direction = e.TradeDirection == TransactionDirection.Buy ? BuySellMark.BuySell.Buy : BuySellMark.BuySell.Sell,
+                    Price = e.TradePrice,
+                });
+                _chart!.Series = _quote.QuoteLines.Select(e => new CandleStickEntry
+                {
+                    High = e.High,
+                    Low = e.Low,
+                    Open = e.Open,
+                    TradeDate = e.TradeDate,
+                    Close = e.Close,
+                });
+                _chart!.DrawCandleStick();
             }
         }
 
@@ -126,7 +127,6 @@ namespace StockStudy
                     WriteAnalysisResult(quote);
                 }
             }
-
         }
 
         private void ButtonTestPy_Click(object sender, EventArgs e)

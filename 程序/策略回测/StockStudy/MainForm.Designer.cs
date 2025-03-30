@@ -44,12 +44,13 @@
             ButtonZoomOut = new Button();
             ButtonZoomIn = new Button();
             labelFocusQuote = new Label();
+            label1 = new Label();
             ((System.ComponentModel.ISupportInitialize)chartBox).BeginInit();
             SuspendLayout();
             // 
             // buttonFile
             // 
-            buttonFile.Location = new Point(926, 20);
+            buttonFile.Location = new Point(898, 20);
             buttonFile.Name = "buttonFile";
             buttonFile.Size = new Size(94, 29);
             buttonFile.TabIndex = 1;
@@ -103,11 +104,11 @@
             // textboxLogger
             // 
             textboxLogger.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            textboxLogger.Location = new Point(25, 495);
+            textboxLogger.Location = new Point(25, 530);
             textboxLogger.Multiline = true;
             textboxLogger.Name = "textboxLogger";
             textboxLogger.ScrollBars = ScrollBars.Vertical;
-            textboxLogger.Size = new Size(992, 126);
+            textboxLogger.Size = new Size(1065, 257);
             textboxLogger.TabIndex = 6;
             // 
             // adjustSelect
@@ -130,15 +131,15 @@
             // 
             // stragtegyBox
             // 
-            stragtegyBox.Location = new Point(103, 55);
+            stragtegyBox.Location = new Point(145, 55);
             stragtegyBox.Name = "stragtegyBox";
-            stragtegyBox.Size = new Size(584, 68);
+            stragtegyBox.Size = new Size(814, 68);
             stragtegyBox.TabIndex = 9;
             stragtegyBox.TabStop = false;
             // 
             // buttonTestPy
             // 
-            buttonTestPy.Location = new Point(923, 77);
+            buttonTestPy.Location = new Point(998, 20);
             buttonTestPy.Name = "buttonTestPy";
             buttonTestPy.Size = new Size(94, 29);
             buttonTestPy.TabIndex = 10;
@@ -148,7 +149,7 @@
             // 
             // button1
             // 
-            button1.Location = new Point(815, 20);
+            button1.Location = new Point(798, 20);
             button1.Name = "button1";
             button1.Size = new Size(94, 29);
             button1.TabIndex = 11;
@@ -160,7 +161,7 @@
             // 
             chartBox.Location = new Point(25, 177);
             chartBox.Name = "chartBox";
-            chartBox.Size = new Size(992, 299);
+            chartBox.Size = new Size(1068, 333);
             chartBox.TabIndex = 12;
             chartBox.TabStop = false;
             chartBox.Paint += ChartBox_Paint;
@@ -169,7 +170,7 @@
             // 
             // ButtonZoomOut
             // 
-            ButtonZoomOut.Location = new Point(25, 142);
+            ButtonZoomOut.Location = new Point(25, 134);
             ButtonZoomOut.Name = "ButtonZoomOut";
             ButtonZoomOut.Size = new Size(28, 29);
             ButtonZoomOut.TabIndex = 13;
@@ -179,7 +180,7 @@
             // 
             // ButtonZoomIn
             // 
-            ButtonZoomIn.Location = new Point(59, 142);
+            ButtonZoomIn.Location = new Point(59, 134);
             ButtonZoomIn.Name = "ButtonZoomIn";
             ButtonZoomIn.Size = new Size(28, 29);
             ButtonZoomIn.TabIndex = 14;
@@ -195,11 +196,21 @@
             labelFocusQuote.Size = new Size(0, 20);
             labelFocusQuote.TabIndex = 15;
             // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(25, 81);
+            label1.Name = "label1";
+            label1.Size = new Size(114, 20);
+            label1.TabIndex = 16;
+            label1.Text = "显示策略买卖点";
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1044, 633);
+            ClientSize = new Size(1117, 799);
+            Controls.Add(label1);
             Controls.Add(labelFocusQuote);
             Controls.Add(ButtonZoomIn);
             Controls.Add(ButtonZoomOut);
@@ -245,5 +256,6 @@
         private Button ButtonZoomOut;
         private Button ButtonZoomIn;
         private Label labelFocusQuote;
+        private Label label1;
     }
 }

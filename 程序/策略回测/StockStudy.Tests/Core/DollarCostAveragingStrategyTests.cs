@@ -61,7 +61,7 @@ namespace StockStudy.Tests
         [TestMethod()]
         public void SmokeTest()
         {
-            var strategy = new DollarCostAveragingStrategy(new DefaultTradingEngine(new DefaultTrader()));
+            var strategy = new DollarCostAveragingStrategy(new DefaultEngine(new DefaultTrader()));
             var summary = strategy.Regress(CreateSimpleQuote());
             var sum = summary.ToString();
             var det = summary.GetDetails();

@@ -5,38 +5,41 @@ namespace StockStudy.Core
 {
     public class DefaultAnalyst : IAnalyst
     {
-        private IDictionary<string, IRegressionStrategy> _strategyDict;
+        private readonly IServiceProvider _serviceProvider;
 
         public DefaultAnalyst(IServiceProvider serviceProvider)
         {
-            _strategyDict = new IRegressionStrategy[]
-            {
-                serviceProvider.GetRequiredService<DollarCostAveragingStrategy>(),
-                serviceProvider.GetRequiredService<MyPullbackStrategy>(),
-                serviceProvider.GetRequiredService<HighSellLowBuyStrategy>(),
-            }.ToDictionary(k => k.Name, k => k);
+            _serviceProvider = serviceProvider;
         }
 
-        public IEnumerable<string> StrategyList => _strategyDict.Keys;
-
-        public InvestmentSummary Analyze(string strategyCode, StockQuote? quote)
-        {
-            if (quote == null ||
-                quote.QuoteLines == null ||
-                !quote.QuoteLines.Any() ||
-                quote.QuoteLines.Any(e => e == null))
+        public IEnumerable<string> StrategyNames =>
+            new IRegressionStrategy[]
             {
-                throw new ArgumentNullException(nameof(quote));
+                _serviceProvider.GetRequiredService<DollarCostAveragingStrategy>(),
+                _serviceProvider.GetRequiredService<MyPullbackStrategy>(),
+                _serviceProvider.GetRequiredService<HighSellLowBuyStrategy>(),
+            }.Select(e => e.Name);
+
+        public IDictionary<string, InvestmentSummary> Analyze(StockQuote? quote)
+        {
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var engine = _serviceProvider.GetRequiredService<DefaultEngine>();
+                var list = new IRegressionStrategy[]
+                {
+                    scope.ServiceProvider.GetRequiredService<DollarCostAveragingStrategy>(),
+                    scope.ServiceProvider.GetRequiredService<MyPullbackStrategy>(),
+                    scope.ServiceProvider.GetRequiredService<HighSellLowBuyStrategy>(),
+                };
+                if (quote == null ||
+                    quote.QuoteLines == null ||
+                    !quote.QuoteLines.Any() ||
+                    quote.QuoteLines.Any(e => e == null))
+                {
+                    throw new ArgumentNullException(nameof(quote));
+                }
+                return list.ToDictionary(entry => entry.Name, entry => entry.InitializeParameters().Regress(quote));
             }
-            var strategy = SelectStrategy(strategyCode);
-            return strategy.Regress(quote);
-        }
-
-        private IRegressionStrategy SelectStrategy(string code)
-        {
-            if (!StrategyList.Contains(code))
-                throw new NotSupportedException($"不支持这个{code}的策略");
-            return _strategyDict[code];
         }
     }
 }

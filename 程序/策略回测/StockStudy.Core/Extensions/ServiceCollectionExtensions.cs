@@ -32,11 +32,11 @@ namespace StockStudy
         public static IServiceCollection AddCoreServices(this IServiceCollection services)
         {
             return services
-                .AddTransient<DefaultTradingEngine>()
-                .AddTransient<DollarCostAveragingStrategy>()
-                .AddTransient<MyPullbackStrategy>()
-                .AddTransient<HighSellLowBuyStrategy>()
-                .AddTransient<IAnalyst, DefaultAnalyst>()
+                .AddScoped<DefaultEngine>()
+                .AddScoped<DollarCostAveragingStrategy>()
+                .AddScoped<MyPullbackStrategy>()
+                .AddScoped<HighSellLowBuyStrategy>()
+                .AddSingleton<IAnalyst, DefaultAnalyst>()
                 .AddSingleton<ITrader, DefaultTrader>()
                 .AddSingleton<IQuoteReader, EastmoneyQuoteReader>()
                 .AddSingleton<IMappers, EastmoneyMapper>()

@@ -7,8 +7,8 @@
         /// </summary>
         /// <param name="quotes">行情数据</param>
         /// <returns>最终结果，不带中间细节</returns>
-        InvestmentSummary Analyze(string strategyName, StockQuote? quote);
+        IDictionary<string, InvestmentSummary> Analyze(StockQuote? quote);
 
-        IEnumerable<string> StrategyList { get; }
+        IEnumerable<string> StrategyNames { get; }
     }
 }

@@ -6,19 +6,17 @@ namespace StockStudy.Core
     /// <summary>
     /// 回调做多
     /// </summary>
-    public class MyPullbackStrategy : IRegressionStrategy
+    public class MyPullbackStrategy : AbstractStrategy, IRegressionStrategy
     {
-        private DefaultTradingEngine _engine;
-        public string Code => "mpb";
-        public string Name => "回调做多";
+        public override string Code => "mpb";
+        public override string Name => "回调做多";
 
-        public MyPullbackStrategy(DefaultTradingEngine engine)
+        public MyPullbackStrategy(DefaultEngine engine) : base(engine)
         {
-            _engine = engine;
         }
 
 
-        public InvestmentSummary Regress(StockQuote quote)
+        protected override void RegressInternal(StockQuote quote)
         {
             //前三个K线回撤超过P个百分点 买入  （ 收盘价 ）
 
@@ -35,15 +33,15 @@ namespace StockStudy.Core
 
                 if (idx == 0)
                 {
-                    _engine.Deposit(price, volume);
-                    _engine.Buy(quote.StockName, lineT.TradeDate, price, volume);
+                    Engine.Deposit(price, volume);
+                    Engine.Buy(quote.StockName, lineT.TradeDate, price, volume);
                 }
 
                 var longSignal = (lineT2.Close - lineT.Close) / lineT.Close >= pullbackPencentage;
                 if (longSignal)
                 {
-                    _engine.Deposit(price, volume);
-                    _engine.Buy(quote.StockName, lineT.TradeDate, price, volume);
+                    Engine.Deposit(price, volume);
+                    Engine.Buy(quote.StockName, lineT.TradeDate, price, volume);
                     continue;
                 }
 
@@ -53,9 +51,7 @@ namespace StockStudy.Core
                     //Sell(quote.StockName, lineT.TradeDate, price, volumn);
                     continue;
                 }
-            }
-
-            return _engine.CreateSummary(Name, quote);
+            } 
         }
 
     }

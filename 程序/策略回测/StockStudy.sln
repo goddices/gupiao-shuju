@@ -7,14 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockStudy.Winform", "Stock
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockStudy.Core", "StockStudy.Core\StockStudy.Core.csproj", "{B2D59671-9D73-423B-8A85-CCAF2C27B179}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "record", "record", "{FD355370-9D58-43E3-8900-6F5BCD30993F}"
-	ProjectSection(SolutionItems) = preProject
-		record\record1.txt = record\record1.txt
-	EndProjectSection
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockStudy.Drawing2D", "StockStudy.Drawing2D\StockStudy.Drawing2D.csproj", "{5DF3F529-D4A2-44FB-ADF0-B3708067A99B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockStudy.Tests", "StockStudy.Tests\StockStudy.Tests.csproj", "{AA865863-34B2-4139-80DC-EF35E24EA4F7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockStudy.Tests", "StockStudy.Tests\StockStudy.Tests.csproj", "{AA865863-34B2-4139-80DC-EF35E24EA4F7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
