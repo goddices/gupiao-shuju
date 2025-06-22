@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36203.30 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSimulator.ConsoleApp", "StockSimulator.ConsoleApp\StockSimulator.ConsoleApp.csproj", "{2C605948-59CE-4185-B7D2-618B0D2F89E4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSimulator.Domain", "StockSimulator.Domain\StockSimulator.Domain.csproj", "{AF307942-47C0-41FB-9D47-9D9F454DAE70}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2C605948-59CE-4185-B7D2-618B0D2F89E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C605948-59CE-4185-B7D2-618B0D2F89E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C605948-59CE-4185-B7D2-618B0D2F89E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C605948-59CE-4185-B7D2-618B0D2F89E4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF307942-47C0-41FB-9D47-9D9F454DAE70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF307942-47C0-41FB-9D47-9D9F454DAE70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF307942-47C0-41FB-9D47-9D9F454DAE70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF307942-47C0-41FB-9D47-9D9F454DAE70}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2C2A220A-C8F3-40F0-B41F-772995EACD39}
+	EndGlobalSection
+EndGlobal
