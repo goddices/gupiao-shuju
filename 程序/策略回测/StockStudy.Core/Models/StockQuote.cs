@@ -1,11 +1,9 @@
-﻿namespace StockStudy.Models
+﻿using StockStudy.Core;
+
+namespace StockStudy.Models
 {
     public class StockQuote
     {
-        public StockQuote()
-        {
-
-        }
 
         public StockQuote(string stockName, PeriodType periodType, IEnumerable<StockQuoteLine> quoteLines)
         {
@@ -19,5 +17,12 @@
         public PeriodType PeriodType { get; set; }
 
         public IEnumerable<StockQuoteLine> QuoteLines { get; set; }
+
+        public StockIndicators Indicators { get; set; } = new StockIndicators();
+
+        public StockIndicators CalculateIndicators()
+        {
+            return new IndicatorCalculator().Calculate(Indicators, QuoteLines.ToArray());
+        }
     }
 }

@@ -38,8 +38,13 @@
         public decimal ChangeVolume { get; set; }
 
         /// <summary>
-        /// 成交额
+        /// 成交量
         /// </summary>
         public decimal TradeVolume { get; set; }
+
+        /// <summary>
+        /// 成交额
+        /// </summary>
+        public decimal TradeAmount { get; set; }
     }
 }

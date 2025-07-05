@@ -81,9 +81,8 @@ namespace StockStudy.EastmoneyImpl
                 Close = Convert.ToDecimal(data[2]),
                 High = Convert.ToDecimal(data[3]),
                 Low = Convert.ToDecimal(data[4]),
-                ChangePercent = Convert.ToDecimal(data[5]),
-                ChangeVolume = Convert.ToDecimal(data[6]),
-                TradeVolume = Convert.ToDecimal(data[7])
+                TradeVolume = Convert.ToDecimal(data[5]),
+                TradeAmount = Convert.ToDecimal(data[6])
             };
         }
     }

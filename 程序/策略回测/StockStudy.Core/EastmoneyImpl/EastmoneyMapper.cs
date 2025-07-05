@@ -1,5 +1,5 @@
 ﻿using StockStudy.Mappers;
-using StockStudy.Models; 
+using StockStudy.Models;
 
 namespace StockStudy.EastmoneyImpl
 {
@@ -10,7 +10,7 @@ namespace StockStudy.EastmoneyImpl
     {
         public string GetPeriodTypeParamValue(PeriodType period)
         {
-            return period switch { PeriodType.Daily => "101", PeriodType.Weekly => "102", _ => string.Empty };
+            return period switch { PeriodType.Daily => "101", PeriodType.Weekly => "102", PeriodType.Monthly => "103", _ => string.Empty };
         }
 
         public string GetAdjustPriceParameterValue(AdjustPriceType adjust)

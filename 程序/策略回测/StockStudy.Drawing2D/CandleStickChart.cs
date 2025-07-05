@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using StockStudy.Models;
+using System.Drawing;
 using System.Reflection;
 
 namespace StockStudy.Drawing2D
@@ -36,6 +37,8 @@ namespace StockStudy.Drawing2D
         public IEnumerable<CandleStickEntry>? Series { get; set; }
 
         public IEnumerable<BuySellMark>? BuySellMarks { get; set; }
+
+        public StockIndicators Indicators { get; set; }
 
         public void DrawCandleStick()
         {

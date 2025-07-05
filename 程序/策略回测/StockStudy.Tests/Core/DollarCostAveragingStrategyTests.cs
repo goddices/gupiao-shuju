@@ -4,16 +4,16 @@ using StockStudy.Models;
 
 namespace StockStudy.Tests
 {
-    [TestClass()]
+    [TestClass]
     public class DollarCostAveragingStrategyTests
     {
         private StockQuote CreateSimpleQuote()
         {
-            return new StockQuote
-            {
-                StockName = "test",
-                QuoteLines = new[]
-                {
+            return new StockQuote(
+
+                stockName: "test",
+                quoteLines:
+                [
                     new StockQuoteLine
                     {
                         High = 3,
@@ -53,11 +53,12 @@ namespace StockStudy.Tests
                         Open  =8,
                         Close = 8,
                         TradeDate = DateTime.Now.Date
-                    }
-                },
-                PeriodType = PeriodType.Weekly
-            };
-        }
+                    },
+                ],
+                periodType: PeriodType.Weekly
+            );
+        } 
+         
         [TestMethod()]
         public void SmokeTest()
         {

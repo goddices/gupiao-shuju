@@ -10,4 +10,8 @@
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\StockStudy.Core\StockStudy.Core.csproj" />
+  </ItemGroup>
+
 </Project>

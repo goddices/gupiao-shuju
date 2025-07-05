@@ -52,7 +52,7 @@ namespace StockStudy
         private void LoadTypeSelections()
         {
             adjustSelect.AddOptions(AdjustPriceType.Pre, AdjustPriceType.Post);
-            periodSelect.AddOptions(PeriodType.Daily, PeriodType.Weekly);
+            periodSelect.AddOptions(PeriodType.Daily, PeriodType.Weekly, PeriodType.Monthly);
             adjustSelect.SelectedIndex = 1;
             periodSelect.SelectedIndex = 1;
         }
@@ -114,6 +114,7 @@ namespace StockStudy
                 adjustSelect.GetSelectedValue<AdjustPriceType>(),
                 periodSelect.GetSelectedValue<PeriodType>()
             );
+            var a = quote.CalculateIndicators();
             WriteAnalysisResult(quote);
         }
 
