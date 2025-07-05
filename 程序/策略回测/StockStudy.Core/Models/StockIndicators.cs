@@ -11,8 +11,8 @@ namespace StockStudy.Models
         public static readonly string MACD = "MACD";
         public static readonly string RSI = "RSI";
         public static readonly string KDJ = "KDJ";
-        public static readonly string BOLL_TOP = "BOLL_TOP";
-        public static readonly string BOLL_BTM = "BOLL_BTM";
+        public static readonly string BOLL_UPPER = "BOLL_UPPER";
+        public static readonly string BOLL_LOWER = "BOLL_LOWER";
 
         public static string MA(int period)
         {
@@ -34,8 +34,8 @@ namespace StockStudy.Models
             _map[StockIndicatorNames.MACD] = new StockIndicatorEntryCollection(StockIndicatorNames.MACD);
             _map[StockIndicatorNames.RSI] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI);
             _map[StockIndicatorNames.KDJ] = new StockIndicatorEntryCollection(StockIndicatorNames.KDJ);
-            _map[StockIndicatorNames.BOLL_TOP] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_TOP);
-            _map[StockIndicatorNames.BOLL_BTM] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_BTM);
+            _map[StockIndicatorNames.BOLL_UPPER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_UPPER);
+            _map[StockIndicatorNames.BOLL_LOWER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_LOWER);
         }
 
         public IEnumerable<StockIndicatorEntryCollection> GetAllIndicators()
