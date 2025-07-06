@@ -1,7 +1,4 @@
-﻿using System.Collections;
-using System.Text;
-
-namespace StockStudy.Models
+﻿namespace StockStudy.Models
 {
     public class StockIndicatorNames
     {
@@ -22,32 +19,32 @@ namespace StockStudy.Models
 
     public class StockIndicators
     {
-        private IDictionary<string, StockIndicatorEntryCollection> _map = new Dictionary<string, StockIndicatorEntryCollection>();
+        private IDictionary<string, StockIndicatorEntryCollection> _indicatorStore = new Dictionary<string, StockIndicatorEntryCollection>();
 
 
         public StockIndicators()
         {
             // 初始化常用指标
-            _map[StockIndicatorNames.MA5] = new StockIndicatorEntryCollection(StockIndicatorNames.MA5);
-            _map[StockIndicatorNames.MA10] = new StockIndicatorEntryCollection(StockIndicatorNames.MA10);
-            _map[StockIndicatorNames.MA20] = new StockIndicatorEntryCollection(StockIndicatorNames.MA20);
-            _map[StockIndicatorNames.MACD] = new StockIndicatorEntryCollection(StockIndicatorNames.MACD);
-            _map[StockIndicatorNames.RSI] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI);
-            _map[StockIndicatorNames.KDJ] = new StockIndicatorEntryCollection(StockIndicatorNames.KDJ);
-            _map[StockIndicatorNames.BOLL_UPPER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_UPPER);
-            _map[StockIndicatorNames.BOLL_LOWER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_LOWER);
+            _indicatorStore[StockIndicatorNames.MA5] = new StockIndicatorEntryCollection(StockIndicatorNames.MA5);
+            _indicatorStore[StockIndicatorNames.MA10] = new StockIndicatorEntryCollection(StockIndicatorNames.MA10);
+            _indicatorStore[StockIndicatorNames.MA20] = new StockIndicatorEntryCollection(StockIndicatorNames.MA20);
+            _indicatorStore[StockIndicatorNames.MACD] = new StockIndicatorEntryCollection(StockIndicatorNames.MACD);
+            _indicatorStore[StockIndicatorNames.RSI] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI);
+            _indicatorStore[StockIndicatorNames.KDJ] = new StockIndicatorEntryCollection(StockIndicatorNames.KDJ);
+            _indicatorStore[StockIndicatorNames.BOLL_UPPER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_UPPER);
+            _indicatorStore[StockIndicatorNames.BOLL_LOWER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_LOWER);
         }
 
         public IEnumerable<StockIndicatorEntryCollection> GetAllIndicators()
         {
-            return _map.Values;
+            return _indicatorStore.Values;
         }
 
         public StockIndicatorEntryCollection this[string name]
         {
             get
             {
-                if (_map.TryGetValue(name, out var entry))
+                if (_indicatorStore.TryGetValue(name, out var entry))
                 {
                     return entry;
                 }
@@ -55,7 +52,7 @@ namespace StockStudy.Models
             }
             set
             {
-                _map[name] = value;
+                _indicatorStore[name] = value;
             }
         }
 
@@ -87,7 +84,7 @@ namespace StockStudy.Models
 
         public override string ToString()
         {
-            var sb = new StringBuilder();
+            var sb = new System.Text.StringBuilder();
             foreach (var entry in this)
             {
                 sb.AppendLine(entry.ToString());

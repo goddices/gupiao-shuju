@@ -2,33 +2,20 @@
 
 namespace StockStudy.Core
 {
-    public static class StockQuoteExtensions
-    {
-        public static decimal StandardDeviation(this IEnumerable<decimal> priceList, decimal ma)
-        {
-            // 各个软件中BOLL指标误差较大 两位小数
-            bool eqq = ma == priceList.Average();
-            if (!priceList.Any()) return 0; // 如果没有数据，返回0
-            var sqrt = Math.Sqrt(Convert.ToDouble(priceList.Select(price => price - priceList.Average()).Select(e => e * e).Sum()) / Convert.ToDouble(priceList.Count()));
-            return Convert.ToDecimal(sqrt);
-        }
-
-        public static decimal Round2(this decimal value)
-        {
-            return Math.Round(value, 2, MidpointRounding.AwayFromZero);
-        }
-        public static decimal Round4(this decimal value)
-        {
-            return Math.Round(value, 4, MidpointRounding.AwayFromZero);
-        }
-    }
-
     public class IndicatorCalculator
     {
         public StockIndicators Calculate(StockIndicators Indicators, StockQuoteLine[] QuoteLines)
         {
             // 计算指标 
             int[] ma_periods = [5, 10, 20];
+            var boll_ma_period = 20;
+            var boll_K = 2; 
+            
+            var rsi_period = 6;
+            var div = rsi_period - 1;
+            var firstDay = false;
+            decimal avgGain = 0, avgLoss = 0;
+
             var lineArray = QuoteLines.ToArray();
             for (int index = 0; index < lineArray.Length; index++)
             {
@@ -51,16 +38,57 @@ namespace StockStudy.Core
                 // MA20
                 // BOLL上轨 = MA20 + 2 * stddev(20)
                 // BOLL下轨 = MA20 - 2 * stddev(20)
-                var boll_ma_period = 20;
                 if (index + 1 >= boll_ma_period)
                 {
-                    var ma20 = Indicators[StockIndicatorNames.MA(boll_ma_period)].FirstOrDefault(e => e.TradeDate == currentLine.TradeDate);
-                    if (ma20 != null)
+                    var bollma = Indicators[StockIndicatorNames.MA(boll_ma_period)].FirstOrDefault(e => e.TradeDate == currentLine.TradeDate);
+                    if (bollma != null)
                     {
-                        var stddev = lineArray.Skip(index - (boll_ma_period - 1)).Take(boll_ma_period).Select(e => e.Close).StandardDeviation(ma20.Value).Round4();
-                        Indicators[StockIndicatorNames.BOLL_UPPER].Add(currentLine.TradeDate, ma20.Value + 2 * stddev); // BOLL上轨
-                        Indicators[StockIndicatorNames.BOLL_LOWER].Add(currentLine.TradeDate, ma20.Value - 2 * stddev); // BOLL下轨
+                        var stddev = lineArray.Skip(index - (boll_ma_period - 1)).Take(boll_ma_period).Select(e => e.Close).StandardDeviation().Round4();
+                        Indicators[StockIndicatorNames.BOLL_UPPER].Add(currentLine.TradeDate, bollma.Value + boll_K * stddev); // BOLL上轨
+                        Indicators[StockIndicatorNames.BOLL_LOWER].Add(currentLine.TradeDate, bollma.Value - boll_K * stddev); // BOLL下轨
                     }
+                }
+
+                // RSI
+                
+                if (index + 1 >= rsi_period) // 15Ks才能计算RSI
+                {
+                    var gains = new List<decimal>();
+                    var losses = new List<decimal>();
+                    for (int i = index - rsi_period + 1; i <= index; i++)
+                    {
+                        if (i == 0)
+                        {
+                            firstDay = true;
+                            continue; // 跳过第一个元素 
+                        }
+                        var change = lineArray[i].Close - lineArray[i - 1].Close;
+                        if (change > 0)
+                        {
+                            gains.Add(change);
+                            losses.Add(0);
+                        }
+                        else
+                        {
+                            gains.Add(0);
+                            losses.Add(-change);
+                        }
+                    }
+                    if (firstDay)
+                    {
+                        avgGain = gains.Any() ? gains.Sum() / div : 0;
+                        avgLoss = losses.Any() ? losses.Sum() / div : 0;
+                    }
+                    else
+                    {
+                        avgGain = (avgGain * div + gains.Last()) / rsi_period;
+                        avgLoss = (avgLoss * div + losses.Last()) / rsi_period;
+                    }
+                    var rs = avgLoss == 0 ? 100 : avgGain / avgLoss;
+                    var rsi = 100 - (100 / (1 + rs));
+                    Indicators[StockIndicatorNames.RSI].Add(currentLine.TradeDate, rsi.Round4());
+
+                    firstDay = false;
                 }
             }
             return Indicators;
