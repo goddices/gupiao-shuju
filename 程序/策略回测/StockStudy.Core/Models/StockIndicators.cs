@@ -2,18 +2,21 @@
 {
     public class StockIndicatorNames
     {
-        public static readonly string MA5 = "MA5";
-        public static readonly string MA10 = "MA10";
-        public static readonly string MA20 = "MA20";
+        public static readonly string SMA5 = nameof(SMA5);
+        public static readonly string SMA10 = nameof(SMA10);
+        public static readonly string SMA20 = nameof(SMA20);
+        public static readonly string EMA5 = nameof(EMA5);
+        public static readonly string EMA10 = nameof(EMA10);
+        public static readonly string EMA20 = nameof(EMA20);
         public static readonly string MACD = "MACD";
         public static readonly string RSI = "RSI";
         public static readonly string KDJ = "KDJ";
         public static readonly string BOLL_UPPER = "BOLL_UPPER";
         public static readonly string BOLL_LOWER = "BOLL_LOWER";
 
-        public static string MA(int period)
+        public static string SMA(int period)
         {
-            return $"MA{period}";
+            return $"SMA{period}";
         }
     }
 
@@ -25,9 +28,12 @@
         public StockIndicators()
         {
             // 初始化常用指标
-            _indicatorStore[StockIndicatorNames.MA5] = new StockIndicatorEntryCollection(StockIndicatorNames.MA5);
-            _indicatorStore[StockIndicatorNames.MA10] = new StockIndicatorEntryCollection(StockIndicatorNames.MA10);
-            _indicatorStore[StockIndicatorNames.MA20] = new StockIndicatorEntryCollection(StockIndicatorNames.MA20);
+            _indicatorStore[StockIndicatorNames.SMA5] = new StockIndicatorEntryCollection(StockIndicatorNames.SMA5);
+            _indicatorStore[StockIndicatorNames.SMA10] = new StockIndicatorEntryCollection(StockIndicatorNames.SMA10);
+            _indicatorStore[StockIndicatorNames.SMA20] = new StockIndicatorEntryCollection(StockIndicatorNames.SMA20);
+            _indicatorStore[StockIndicatorNames.EMA5] = new StockIndicatorEntryCollection(StockIndicatorNames.EMA5);
+            _indicatorStore[StockIndicatorNames.EMA10] = new StockIndicatorEntryCollection(StockIndicatorNames.EMA10);
+            _indicatorStore[StockIndicatorNames.EMA20] = new StockIndicatorEntryCollection(StockIndicatorNames.EMA20);
             _indicatorStore[StockIndicatorNames.MACD] = new StockIndicatorEntryCollection(StockIndicatorNames.MACD);
             _indicatorStore[StockIndicatorNames.RSI] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI);
             _indicatorStore[StockIndicatorNames.KDJ] = new StockIndicatorEntryCollection(StockIndicatorNames.KDJ);

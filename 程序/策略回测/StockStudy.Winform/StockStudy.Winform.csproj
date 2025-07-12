@@ -1,22 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk"> 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImplicitUsings>enable</ImplicitUsings>
-	</PropertyGroup>
-
-
-
+	</PropertyGroup> 
 	<ItemGroup>
 	  <ProjectReference Include="..\StockStudy.Core\StockStudy.Core.csproj" />
 	  <ProjectReference Include="..\StockStudy.Drawing2D\StockStudy.Drawing2D.csproj" />
-	</ItemGroup>
-
-
-
+	</ItemGroup> 
 	<ItemGroup>
 	  <None Update="appsettings.json">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>

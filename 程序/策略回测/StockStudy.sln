@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockStudy.Drawing2D", "Sto
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockStudy.Tests", "StockStudy.Tests\StockStudy.Tests.csproj", "{AA865863-34B2-4139-80DC-EF35E24EA4F7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockStudy.CmdApp", "StockStudy.CmdApp\StockStudy.CmdApp.csproj", "{CD7A0D2B-FD38-44C8-B5B2-41C022292DC3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{AA865863-34B2-4139-80DC-EF35E24EA4F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AA865863-34B2-4139-80DC-EF35E24EA4F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AA865863-34B2-4139-80DC-EF35E24EA4F7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD7A0D2B-FD38-44C8-B5B2-41C022292DC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD7A0D2B-FD38-44C8-B5B2-41C022292DC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD7A0D2B-FD38-44C8-B5B2-41C022292DC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD7A0D2B-FD38-44C8-B5B2-41C022292DC3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

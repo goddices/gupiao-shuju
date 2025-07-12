@@ -104,9 +104,9 @@ namespace StockStudy
 
         private async void ButtonApi_Click(object sender, EventArgs e)
         {
-            var market = "1";
-            if (markketSH.Checked) market = "1";
-            if (marketSZ.Checked) market = "0";
+            var market = Market.Unset;
+            if (markketSH.Checked) market = Market.Shanghai;
+            if (marketSZ.Checked) market = Market.Shengzhen;
             var code = stockCodeInput.Text;
             var quote = await _quoteReader.ReadQuoteAsync(
                 market,
