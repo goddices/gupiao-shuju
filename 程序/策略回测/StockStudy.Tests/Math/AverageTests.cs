@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using StockStudy.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,6 +19,25 @@ namespace StockStudy.Tests.Math
             7.94m,7.75m,7.52m
             ];
 
+        [TestMethod]
+        public void BollTest()
+        {
+            var quote = new StockQuote
+            (
+                stockName: "中国电信",
+                periodType: PeriodType.Monthly,
+                quoteLines: closePriceArray.Select(e => new StockQuoteLine { Close = e })
+            );
+            var indicators = quote.CalculateIndicators();
+            Console.WriteLine("收盘价序列");
+            Console.WriteLine(closePriceArray.StringJoin());
+            Console.WriteLine("BOLL中轨");
+            Console.WriteLine(indicators[StockIndicatorNames.SMA20].StringJoin());
+            Console.WriteLine("BOLL上轨");
+            Console.WriteLine(indicators[StockIndicatorNames.BOLL_UPPER].StringJoin());
+            Console.WriteLine("BOLL下轨");
+            Console.WriteLine(indicators[StockIndicatorNames.BOLL_LOWER].StringJoin());
+        }
 
         [TestMethod]
         public void SMATest()

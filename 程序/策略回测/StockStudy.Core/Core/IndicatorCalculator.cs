@@ -61,7 +61,8 @@ namespace StockStudy.Core
                     if (bollma != null)
                     {
                         var ema20 = Indicators[StockIndicatorNames.EMA20].GetValue(currentLine.TradeDate);
-                        var stddev = lineArray.Skip(index - (boll_ma_period - 1)).Take(boll_ma_period).Select(e => e.Close).StandardDeviation(ema20).Round4();
+                        var sma20 = Indicators[StockIndicatorNames.SMA20].GetValue(currentLine.TradeDate);
+                        var stddev = lineArray.Skip(index - (boll_ma_period - 1)).Take(boll_ma_period).Select(e => e.Close).StandardDeviation(sma20).Round4();
                         Indicators[StockIndicatorNames.BOLL_UPPER].Add(currentLine.TradeDate, bollma.Value + boll_K * stddev); // BOLL上轨
                         Indicators[StockIndicatorNames.BOLL_LOWER].Add(currentLine.TradeDate, bollma.Value - boll_K * stddev); // BOLL下轨
                     }

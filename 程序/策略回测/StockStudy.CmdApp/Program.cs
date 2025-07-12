@@ -30,7 +30,14 @@ namespace StockStudy.CmdApp
                 "601728",
                 AdjustPriceType.Pre,
                 PeriodType.Monthly);
-            var a = quo!.CalculateIndicators();
+            var indicators = quo!.CalculateIndicators();
+            Console.WriteLine($"股票名称: {quo.StockName}, 周期: {quo.PeriodType}, 行情数据条数: {quo.QuoteLines.Count()}");
+            Console.WriteLine("BOLL中轨");
+            Console.WriteLine(indicators[StockIndicatorNames.SMA20].StringJoin());
+            Console.WriteLine("BOLL上轨");
+            Console.WriteLine(indicators[StockIndicatorNames.BOLL_UPPER].StringJoin());
+            Console.WriteLine("BOLL下轨");
+            Console.WriteLine(indicators[StockIndicatorNames.BOLL_LOWER].StringJoin());
         }
     }
 }
