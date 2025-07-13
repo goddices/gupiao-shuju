@@ -26,7 +26,11 @@ namespace StockStudy.Tests.Math
             (
                 stockName: "中国电信",
                 periodType: PeriodType.Monthly,
-                quoteLines: closePriceArray.Select(e => new StockQuoteLine { Close = e })
+                quoteLines: closePriceArray.Select((e,index) => new StockQuoteLine
+                {
+                    TradeDate = DateTime.Now.Date.AddMonths(-closePriceArray.Length - index),
+                    Close = e
+                })
             );
             var indicators = quote.CalculateIndicators();
             Console.WriteLine("收盘价序列");
@@ -46,7 +50,7 @@ namespace StockStudy.Tests.Math
             var sma = new List<decimal>();
             for (int index = 0; index < closePriceArray.Length; index++)
             {
-                if (index + 1 > period)
+                if (index + 1 >= period)
                 {
                     sma.Add(closePriceArray.Skip(index - period + 1).Take(period).Average());
                 }
@@ -64,7 +68,7 @@ namespace StockStudy.Tests.Math
             decimal average = 0;
             for (int index = 0; index < closePriceArray.Length; index++)
             {
-                if (index + 1 > period)
+                if (index + 1 >= period)
                 {
                     if (index == period)
                         average = closePriceArray.Skip(index - period + 1).Take(period).Average();
