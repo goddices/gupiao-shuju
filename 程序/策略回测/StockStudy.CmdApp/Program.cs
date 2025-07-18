@@ -38,6 +38,9 @@ namespace StockStudy.CmdApp
             Console.WriteLine(indicators[StockIndicatorNames.BOLL_UPPER].StringJoin());
             Console.WriteLine("BOLL下轨");
             Console.WriteLine(indicators[StockIndicatorNames.BOLL_LOWER].StringJoin());
+            Console.WriteLine(Environment.NewLine);
+            Console.WriteLine("RSI");
+            Console.WriteLine(indicators[StockIndicatorNames.RSI].StringJoin());
         }
     }
 }

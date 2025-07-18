@@ -20,4 +20,8 @@
     <ProjectReference Include="..\StockStudy.Core\StockStudy.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Math\" />
+  </ItemGroup>
+
 </Project>
