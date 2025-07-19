@@ -18,7 +18,7 @@ namespace StockStudy.Tests
             3.70m,3.43m,3.53m,3.42m,3.47m,3.30m,3.26m,3.14m,3.03m,3.01m,3.04m,3.02m,3.06m,3.26m,3.36m,
             3.77m,3.62m,4.43m,5.28m,5.76m,6.12m,5.52m,5.14m,5.19m,5.41m,5.44m,4.98m,4.84m,5.06m,5.40m,
             5.50m,5.73m,5.65m,5.59m,5.89m,5.76m,5.84m,6.62m,6.27m,6.38m,7.13m,6.97m,7.66m,7.76m,7.60m,
-            7.94m,7.75m,7.52m
+            7.94m,7.75m,7.62m
             ];
 
         [TestMethod]
@@ -106,7 +106,7 @@ namespace StockStudy.Tests
             Console.WriteLine("收盘价序列");
             Console.WriteLine(closePriceArray.StringJoin());
             Console.WriteLine("RSI6");
-            Console.WriteLine(indicators[StockIndicatorNames.RSI].StringJoin());
+            Console.WriteLine(indicators[StockIndicatorNames.RSI(6)].StringJoin());
         }
 
         [TestMethod]
@@ -116,8 +116,8 @@ namespace StockStudy.Tests
             Console.WriteLine("RSI6");
             Console.WriteLine(indicators.StringJoin());
 
-            Console.WriteLine("RSI6平滑"); 
-            Console.WriteLine(CalculateEMA(indicators, 6).StringJoin());
+            Console.WriteLine("RSI6平滑");
+            Console.WriteLine(CalculateEMA(indicators, closePriceArray.Length).StringJoin());
         }
 
         // 计算 RSI（14日）
@@ -126,21 +126,48 @@ namespace StockStudy.Tests
             var rsiList = new List<decimal>();
             if (prices.Count < period + 1) return rsiList;
 
+            decimal avgGain = 0, avgLoss = 0;
             for (int i = period; i < prices.Count; i++)
             {
-                decimal gain = 0, loss = 0;
-                for (int j = i - period + 1; j <= i; j++)
+                List<decimal> gain = new List<decimal>(), loss = new List<decimal>();
+                for (int j = i - period; j < i; j++)
                 {
+                    if (j == 0) continue; // 跳过第一个元素，因为没有前一个价格
                     decimal change = prices[j] - prices[j - 1];
-                    if (change > 0) gain += change;
-                    else loss -= change;
+
+                    if (change > 0)
+                    {
+                        gain.Add(change);
+                        loss.Add(0);
+                    }
+                    else if (change < 0)
+                    {
+                        gain.Add(0);
+                        loss.Add(-change);
+                    }
+                    else
+                    {
+                        gain.Add(0);
+                        loss.Add(0);
+                    }
+                }
+                if (i == period)
+                {
+                    // 第一次计算，直接使用平均值
+                    avgGain = gain.Sum() / period;
+                    avgLoss = loss.Sum() / period;
+                }
+                else
+                {
+                    // 后续计算使用前一周期的平均值
+                    avgGain = (avgGain * (period - 1) + gain[period - 1]) / period;
+                    avgLoss = (avgLoss * (period - 1) + loss[period - 1]) / period;
                 }
 
-                decimal avgGain = gain / period;
-                decimal avgLoss = loss / period;
                 decimal rs = avgLoss == 0 ? 100 : avgGain / avgLoss;
                 decimal rsi = 100 - (100 / (1 + rs));
                 rsiList.Add(rsi.Round4());
+
             }
 
             return rsiList;

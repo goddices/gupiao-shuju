@@ -8,15 +8,28 @@
         public static readonly string EMA5 = nameof(EMA5);
         public static readonly string EMA10 = nameof(EMA10);
         public static readonly string EMA20 = nameof(EMA20);
-        public static readonly string MACD = "MACD";
-        public static readonly string RSI = "RSI";
+        public static readonly string MACD = "MACD"; 
         public static readonly string KDJ = "KDJ";
+        public static readonly string RSI6 = "RSI6";
+        public static readonly string RSI12 = "RSI12";
+        public static readonly string RSI24 = "RSI24";
         public static readonly string BOLL_UPPER = "BOLL_UPPER";
         public static readonly string BOLL_LOWER = "BOLL_LOWER";
+        public static readonly string BOLL_MIDDLE = "BOLL_MIDDLE";
 
         public static string SMA(int period)
         {
             return $"SMA{period}";
+        }
+
+        public static string EMA(int period)
+        {
+            return $"EMA{period}";
+        }
+
+        public static string RSI(int period)
+        {
+            return $"RSI{period}";
         }
     }
 
@@ -35,8 +48,11 @@
             _indicatorStore[StockIndicatorNames.EMA10] = new StockIndicatorEntryCollection(StockIndicatorNames.EMA10);
             _indicatorStore[StockIndicatorNames.EMA20] = new StockIndicatorEntryCollection(StockIndicatorNames.EMA20);
             _indicatorStore[StockIndicatorNames.MACD] = new StockIndicatorEntryCollection(StockIndicatorNames.MACD);
-            _indicatorStore[StockIndicatorNames.RSI] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI);
+            _indicatorStore[StockIndicatorNames.RSI6] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI6);
+            _indicatorStore[StockIndicatorNames.RSI12] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI12);
+            _indicatorStore[StockIndicatorNames.RSI24] = new StockIndicatorEntryCollection(StockIndicatorNames.RSI24);
             _indicatorStore[StockIndicatorNames.KDJ] = new StockIndicatorEntryCollection(StockIndicatorNames.KDJ);
+            _indicatorStore[StockIndicatorNames.BOLL_MIDDLE] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_MIDDLE);
             _indicatorStore[StockIndicatorNames.BOLL_UPPER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_UPPER);
             _indicatorStore[StockIndicatorNames.BOLL_LOWER] = new StockIndicatorEntryCollection(StockIndicatorNames.BOLL_LOWER);
         }

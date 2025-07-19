@@ -11,7 +11,8 @@ namespace StockStudy.CmdApp
             var provider = AddServices(new ServiceCollection()).BuildServiceProvider();
             var quoteReader = provider.GetRequiredService<IQuoteReader>();
             TaskMainAsync(quoteReader).Wait();
-            Console.ReadLine();
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
         }
 
         static IServiceCollection AddServices(IServiceCollection services)
@@ -33,14 +34,18 @@ namespace StockStudy.CmdApp
             var indicators = quo!.CalculateIndicators();
             Console.WriteLine($"股票名称: {quo.StockName}, 周期: {quo.PeriodType}, 行情数据条数: {quo.QuoteLines.Count()}");
             Console.WriteLine("BOLL中轨");
-            Console.WriteLine(indicators[StockIndicatorNames.SMA20].StringJoin());
+            Console.WriteLine(indicators[StockIndicatorNames.BOLL_MIDDLE].StringJoin());
             Console.WriteLine("BOLL上轨");
             Console.WriteLine(indicators[StockIndicatorNames.BOLL_UPPER].StringJoin());
             Console.WriteLine("BOLL下轨");
             Console.WriteLine(indicators[StockIndicatorNames.BOLL_LOWER].StringJoin());
             Console.WriteLine(Environment.NewLine);
-            Console.WriteLine("RSI");
-            Console.WriteLine(indicators[StockIndicatorNames.RSI].StringJoin());
+            Console.WriteLine("RSI6");
+            Console.WriteLine(indicators[StockIndicatorNames.RSI(6)].StringJoin());
+            Console.WriteLine("RSI12");
+            Console.WriteLine(indicators[StockIndicatorNames.RSI(12)].StringJoin());
+            Console.WriteLine("RSI24");
+            Console.WriteLine(indicators[StockIndicatorNames.RSI(24)].StringJoin());
         }
     }
 }
