@@ -45,7 +45,10 @@ class RegressionKLineAnalyzer:
         if stock_code == "000001" and stock_name == "上证指数":
             market_code = Market.SHANGHAI
         else:
-            market_code = Market.SHENGZHEN
+            if stock_code.startswith('6'):
+                market_code = Market.SHANGHAI
+            else:
+                market_code = Market.SHENGZHEN
         
         # 转换周期类型
         period_mapping = {
@@ -281,9 +284,12 @@ class RegressionKLineAnalyzer:
         
         plt.tight_layout()
         
-        # 保存图表
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        save_path = os.path.join(script_dir, f"{self.stock_code}_线性回归分析.jpg")
+        # 保存图表到指定目录
+        import os
+        results_dir = os.path.join("..", "..", "results", "20260102")
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir)
+        save_path = os.path.join(results_dir, f"{self.stock_code}_线性回归分析.jpg")
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"图表已保存至: {save_path}")
         

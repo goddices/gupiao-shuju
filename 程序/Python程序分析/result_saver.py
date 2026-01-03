@@ -16,8 +16,10 @@ class ResultSaver:
         self.analysis_name = analysis_name
         self.results_dir = "results"
         self.create_results_dir()
-        self.timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.session_dir = os.path.join(self.results_dir, f"{self.timestamp}_{analysis_name}")
+        # 使用指定的日期目录
+        # 使用固定日期目录
+        self.timestamp = datetime.now().strftime('%Y%m%d')
+        self.session_dir = os.path.join(self.results_dir, "20260102")
         self.create_session_dir()
         
         # 创建日志文件

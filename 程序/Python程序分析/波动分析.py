@@ -42,7 +42,10 @@ class BasicKLineAnalyzer:
         if stock_code == "000001" and stock_name == "上证指数":
             market_code = Market.SHANGHAI
         else:
-            market_code = Market.SHENGZHEN
+            if stock_code.startswith('6'):
+                market_code = Market.SHANGHAI
+            else:
+                market_code = Market.SHENGZHEN
         
         # 转换周期类型
         period_mapping = {
