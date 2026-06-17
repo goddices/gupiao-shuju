@@ -2,6 +2,8 @@ import asyncio
 import aiohttp
 import json
 import random
+import secrets
+import time
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Iterable
 
@@ -83,16 +85,85 @@ class QuoteMappers:
         return period_type
 
 
+def generate_eastmoney_cookie_str():
+    """
+    生成模拟的东方财富网 Cookie 字符串。
+    返回格式: "key1=value1; key2=value2; ..."
+    所有动态值（时间戳、随机ID、会话计数等）都会实时生成。
+    """
+    # 当前毫秒时间戳
+    current_ms = int(time.time() * 1000)
+    # 当前时间字符串（用于 st_sp）
+    current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+    # 辅助：生成32位十六进制随机串
+    def random_hex32():
+        return secrets.token_hex(16)
+
+    # 辅助：生成24位字母数字混合串（含一个短横线）
+    def random_alnum(length=24):
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        raw = "".join(secrets.choice(chars) for _ in range(length))
+        # 随机插入一个 '-' 使格式更像原始
+        pos = random.randint(4, length - 4)
+        raw = raw[:pos] + "-" + raw[pos + 1 :]
+        return raw
+
+    # 辅助：生成 st_psi（时间戳-随机数-随机数）
+    def gen_st_psi():
+        r1 = str(random.randint(100000000000, 999999999999))
+        r2 = str(random.randint(1000000000, 9999999999))
+        return f"{current_ms}-{r1}-{r2}"
+
+    # 构建 Cookie 字典
+    cookies = {
+        # 固定值
+        "fullscreengg": "1",
+        "fullscreengg2": "1",
+        "st_asi": "delete",
+        # 随机ID（每次不同）
+        "qgqp_b_id": random_hex32(),
+        "nid18": random_hex32(),
+        "st_nvi": random_alnum(24),
+        "gviem": random_alnum(24),
+        # 时间戳
+        "nid18_create_time": str(current_ms),
+        "gviem_create_time": str(current_ms),
+        "websitepoptg_api_time": str(current_ms),
+        "st_sp": current_time_str,
+        # 会话信息
+        "st_psi": gen_st_psi(),
+        "st_pvi": str(random.randint(10000000000000, 99999999999999)),
+        "st_si": str(random.randint(10000000000000, 99999999999999)),
+        "st_sn": "1",  # 初始步数
+        "st_inirUrl": "https%3A%2F%2Fwww.eastmoney.com%2F",
+    }
+
+    # 拼接成字符串
+    return "; ".join([f"{k}={v}" for k, v in cookies.items()])
+
+
 class EastmoneyQuoteReader:
     """东方财富行情数据读取器"""
     
-    def __init__(self, mappers: QuoteMappers = None):
+    def __init__(self, mappers: QuoteMappers = None, cookie: str = None):
         """
         初始化行情读取器
         :param mappers: 映射器实例，默认为QuoteMappers()
+        :param cookie: 请求Cookie，默认为DEFAULT_COOKIE
         """
         self.mappers = mappers or QuoteMappers()
         self.base_url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+        self.cookie = cookie or generate_eastmoney_cookie_str()
+        self.headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Referer": "https://quote.eastmoney.com/",
+            "Cookie": self.cookie,
+        }
     
     async def read_quote_async(self, market: str, stock_code: str, adjust_type: AdjustPriceType, 
                                period_type: PeriodType, end_date: str = "20500101", 
@@ -132,7 +203,7 @@ class EastmoneyQuoteReader:
             }
             
             # 发送HTTP请求
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(self.base_url, params=params) as response:
                     if response.status == 200:
                         content = await response.text()
