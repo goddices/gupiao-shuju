@@ -184,7 +184,7 @@ class EastmoneyQuoteReader:
                 "Chrome/120.0.0.0 Safari/537.36"
             ),
             "Referer": "https://quote.eastmoney.com/",
-            # "Cookie": self.cookie,
+            "Cookie": self.cookie,
         }
 
     async def read_quote_async(

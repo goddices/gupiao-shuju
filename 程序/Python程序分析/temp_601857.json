@@ -1,0 +1,335 @@
+[
+    {
+        "seq": 1,
+        "annual": "2007年末期",
+        "plan_10shares": "1.5686",
+        "per_share": "0.15686",
+        "record_date": "2008-06-12",
+        "ex_dividend_date": "2008-06-13",
+        "payment_date": "2008-06-30"
+    },
+    {
+        "seq": 2,
+        "annual": "2008年中期",
+        "plan_10shares": "1.3183",
+        "per_share": "0.13183",
+        "record_date": "2008-09-18",
+        "ex_dividend_date": "2008-09-19",
+        "payment_date": "2008-09-26"
+    },
+    {
+        "seq": 3,
+        "annual": "2008年末期",
+        "plan_10shares": "1.4953",
+        "per_share": "0.14953",
+        "record_date": "2009-06-18",
+        "ex_dividend_date": "2009-06-19",
+        "payment_date": "2009-06-30"
+    },
+    {
+        "seq": 4,
+        "annual": "2009年中期",
+        "plan_10shares": "1.2417",
+        "per_share": "0.12417",
+        "record_date": "2009-09-21",
+        "ex_dividend_date": "2009-09-22",
+        "payment_date": "2009-09-30"
+    },
+    {
+        "seq": 5,
+        "annual": "2009年末期",
+        "plan_10shares": "1.3003",
+        "per_share": "0.13003",
+        "record_date": "2010-06-02",
+        "ex_dividend_date": "2010-06-03",
+        "payment_date": "2010-06-30"
+    },
+    {
+        "seq": 6,
+        "annual": "2010年中期",
+        "plan_10shares": "1.6063",
+        "per_share": "0.16063",
+        "record_date": "2010-09-15",
+        "ex_dividend_date": "2010-09-16",
+        "payment_date": "2010-09-30"
+    },
+    {
+        "seq": 7,
+        "annual": "2010年末期",
+        "plan_10shares": "1.8357",
+        "per_share": "0.18357",
+        "record_date": "2011-06-15",
+        "ex_dividend_date": "2011-06-16",
+        "payment_date": "2011-06-30"
+    },
+    {
+        "seq": 8,
+        "annual": "2011年中期",
+        "plan_10shares": "1.6229",
+        "per_share": "0.16229",
+        "record_date": "2011-09-15",
+        "ex_dividend_date": "2011-09-16",
+        "payment_date": "2011-09-30"
+    },
+    {
+        "seq": 9,
+        "annual": "2011年末期",
+        "plan_10shares": "1.6462",
+        "per_share": "0.16462",
+        "record_date": "2012-06-15",
+        "ex_dividend_date": "2012-06-18",
+        "payment_date": "2012-06-29"
+    },
+    {
+        "seq": 10,
+        "annual": "2012年中期",
+        "plan_10shares": "1.5250",
+        "per_share": "0.15250",
+        "record_date": "2012-09-19",
+        "ex_dividend_date": "2012-09-20",
+        "payment_date": "2012-09-28"
+    },
+    {
+        "seq": 11,
+        "annual": "2012年末期",
+        "plan_10shares": "1.3106",
+        "per_share": "0.13106",
+        "record_date": "2013-06-18",
+        "ex_dividend_date": "2013-06-19",
+        "payment_date": "2013-06-28"
+    },
+    {
+        "seq": 12,
+        "annual": "2013年中期",
+        "plan_10shares": "1.6110",
+        "per_share": "0.16110",
+        "record_date": "2013-09-16",
+        "ex_dividend_date": "2013-09-17",
+        "payment_date": "2013-09-30"
+    },
+    {
+        "seq": 13,
+        "annual": "2013年末期",
+        "plan_10shares": "1.5755",
+        "per_share": "0.15755",
+        "record_date": "2014-06-17",
+        "ex_dividend_date": "2014-06-18",
+        "payment_date": "2014-06-30"
+    },
+    {
+        "seq": 14,
+        "annual": "2014年中期",
+        "plan_10shares": "1.6750",
+        "per_share": "0.16750",
+        "record_date": "2014-09-18",
+        "ex_dividend_date": "2014-09-19",
+        "payment_date": "2014-09-30"
+    },
+    {
+        "seq": 15,
+        "annual": "2014年末期",
+        "plan_10shares": "0.9601",
+        "per_share": "0.09601",
+        "record_date": "2015-07-07",
+        "ex_dividend_date": "2015-07-08",
+        "payment_date": "2015-07-15"
+    },
+    {
+        "seq": 16,
+        "annual": "2015年中期",
+        "plan_10shares": "0.6247",
+        "per_share": "0.06247",
+        "record_date": "2015-09-16",
+        "ex_dividend_date": "2015-09-17",
+        "payment_date": "2015-09-25"
+    },
+    {
+        "seq": 17,
+        "annual": "2015年末期",
+        "plan_10shares": "0.2486",
+        "per_share": "0.02486",
+        "record_date": "2016-06-06",
+        "ex_dividend_date": "2016-06-07",
+        "payment_date": "2016-06-22"
+    },
+    {
+        "seq": 18,
+        "annual": "2016年中期",
+        "plan_10shares": "0.2131",
+        "per_share": "0.02131",
+        "record_date": "2016-09-19",
+        "ex_dividend_date": "2016-09-20",
+        "payment_date": "2016-09-29"
+    },
+    {
+        "seq": 19,
+        "annual": "2016年末期",
+        "plan_10shares": "0.3801",
+        "per_share": "0.03801",
+        "record_date": "2017-06-20",
+        "ex_dividend_date": "2017-06-21",
+        "payment_date": "2017-06-30"
+    },
+    {
+        "seq": 20,
+        "annual": "2017年中期",
+        "plan_10shares": "0.6926",
+        "per_share": "0.06926",
+        "record_date": "2017-09-13",
+        "ex_dividend_date": "2017-09-14",
+        "payment_date": "2017-09-22"
+    },
+    {
+        "seq": 21,
+        "annual": "2017年末期",
+        "plan_10shares": "0.6074",
+        "per_share": "0.06074",
+        "record_date": "2018-06-19",
+        "ex_dividend_date": "2018-06-20",
+        "payment_date": "2018-06-29"
+    },
+    {
+        "seq": 22,
+        "annual": "2018年中期",
+        "plan_10shares": "0.8880",
+        "per_share": "0.08880",
+        "record_date": "2018-09-19",
+        "ex_dividend_date": "2018-09-20",
+        "payment_date": "2018-09-28"
+    },
+    {
+        "seq": 23,
+        "annual": "2018年末期",
+        "plan_10shares": "0.9000",
+        "per_share": "0.09000",
+        "record_date": "2019-06-26",
+        "ex_dividend_date": "2019-06-27",
+        "payment_date": "2019-07-05"
+    },
+    {
+        "seq": 24,
+        "annual": "2019年中期",
+        "plan_10shares": "0.7765",
+        "per_share": "0.07765",
+        "record_date": "2019-09-20",
+        "ex_dividend_date": "2019-09-23",
+        "payment_date": "2019-09-30"
+    },
+    {
+        "seq": 25,
+        "annual": "2019年末期",
+        "plan_10shares": "0.6601",
+        "per_share": "0.06601",
+        "record_date": "2020-06-24",
+        "ex_dividend_date": "2020-06-29",
+        "payment_date": "2020-07-06"
+    },
+    {
+        "seq": 26,
+        "annual": "2020年中期",
+        "plan_10shares": "0.8742",
+        "per_share": "0.08742",
+        "record_date": "2020-09-18",
+        "ex_dividend_date": "2020-09-21",
+        "payment_date": "2020-09-29"
+    },
+    {
+        "seq": 27,
+        "annual": "2020年末期",
+        "plan_10shares": "0.8742",
+        "per_share": "0.08742",
+        "record_date": "2021-06-25",
+        "ex_dividend_date": "2021-06-28",
+        "payment_date": "2021-07-05"
+    },
+    {
+        "seq": 28,
+        "annual": "2021年中期",
+        "plan_10shares": "1.3040",
+        "per_share": "0.13040",
+        "record_date": "2021-09-15",
+        "ex_dividend_date": "2021-09-16",
+        "payment_date": "2021-09-27"
+    },
+    {
+        "seq": 29,
+        "annual": "2021年末期",
+        "plan_10shares": "0.9622",
+        "per_share": "0.09622",
+        "record_date": "2022-06-24",
+        "ex_dividend_date": "2022-06-27",
+        "payment_date": "2022-07-08"
+    },
+    {
+        "seq": 30,
+        "annual": "2022年中期",
+        "plan_10shares": "2.0258",
+        "per_share": "0.20258",
+        "record_date": "2022-09-16",
+        "ex_dividend_date": "2022-09-19",
+        "payment_date": "2022-09-29"
+    },
+    {
+        "seq": 31,
+        "annual": "2022年末期",
+        "plan_10shares": "2.2000",
+        "per_share": "0.22000",
+        "record_date": "2023-06-26",
+        "ex_dividend_date": "2023-06-27",
+        "payment_date": "2023-07-07"
+    },
+    {
+        "seq": 32,
+        "annual": "2023年中期",
+        "plan_10shares": "2.1000",
+        "per_share": "0.21000",
+        "record_date": "2023-09-18",
+        "ex_dividend_date": "2023-09-19",
+        "payment_date": "2023-09-28"
+    },
+    {
+        "seq": 33,
+        "annual": "2023年末期",
+        "plan_10shares": "2.3000",
+        "per_share": "0.23000",
+        "record_date": "2024-06-24",
+        "ex_dividend_date": "2024-06-25",
+        "payment_date": "2024-07-05"
+    },
+    {
+        "seq": 34,
+        "annual": "2024年中期",
+        "plan_10shares": "2.2000",
+        "per_share": "0.22000",
+        "record_date": "2024-09-13",
+        "ex_dividend_date": "2024-09-18",
+        "payment_date": "2024-09-30"
+    },
+    {
+        "seq": 35,
+        "annual": "2024年末期",
+        "plan_10shares": "2.5000",
+        "per_share": "0.25000",
+        "record_date": "2025-06-23",
+        "ex_dividend_date": "2025-06-24",
+        "payment_date": "2025-07-03"
+    },
+    {
+        "seq": 36,
+        "annual": "2025年中期",
+        "plan_10shares": "2.2000",
+        "per_share": "0.22000",
+        "record_date": "2025-09-15",
+        "ex_dividend_date": "2025-09-16",
+        "payment_date": "2025-09-26"
+    },
+    {
+        "seq": 37,
+        "annual": "2025年末期",
+        "plan_10shares": "2.5000",
+        "per_share": "0.25000",
+        "record_date": "2026-06-25",
+        "ex_dividend_date": "2026-06-26",
+        "payment_date": "2026-06-26"
+    }
+]
