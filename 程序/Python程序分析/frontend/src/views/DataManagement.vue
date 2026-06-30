@@ -32,11 +32,12 @@
               v-model:value="formState.selectedCodes"
               mode="multiple"
               :options="stockOptions"
-              :filter-option="filterOption"
-              placeholder="搜索并选择股票（可多选）"
+              :filter-option="() => true"
+              placeholder="输入代码或名称自动搜索"
               style="width: 100%"
               show-search
               :loading="stockListLoading"
+              @search="onSearchInput"
             />
           </a-form-item>
           <a-form-item>
@@ -67,8 +68,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { getStockList, syncStockList, fetchStockQuotes } from '../api'
+import { ref, reactive } from 'vue'
+import { searchStockInfo, syncStockList, fetchStockQuotes } from '../api'
 
 const formState = reactive({
   selectedCodes: [],
@@ -84,9 +85,36 @@ const syncMsgType = ref('success')
 const stockListLoading = ref(false)
 const stockOptions = ref([])
 const stockNameMap = ref({})
+let searchTimer = null
 
-function filterOption(input, option) {
-  return option.label.toLowerCase().includes(input.toLowerCase())
+function onSearchInput(value) {
+  // 防抖：输入停止 300ms 后自动搜索
+  clearTimeout(searchTimer)
+  if (!value || !value.trim()) {
+    stockOptions.value = []
+    return
+  }
+  searchTimer = setTimeout(() => {
+    doSearch(value.trim())
+  }, 300)
+}
+
+async function doSearch(keyword) {
+  if (!keyword) return
+
+  stockListLoading.value = true
+  try {
+    const { data } = await searchStockInfo(keyword)
+    const map = {}
+    stockOptions.value = data.map(s => {
+      const label = s.stock_name ? `${s.stock_code} ${s.stock_name}` : s.stock_code
+      map[s.stock_code] = s.stock_name || ''
+      return { value: s.stock_code, label }
+    })
+    Object.assign(stockNameMap.value, map)
+  } finally {
+    stockListLoading.value = false
+  }
 }
 
 async function syncStocks() {
@@ -96,30 +124,11 @@ async function syncStocks() {
     const { data } = await syncStockList()
     syncMsg.value = data.message || '同步完成'
     syncMsgType.value = data.status === 'ok' ? 'success' : 'warning'
-    if (data.status === 'ok') {
-      await loadStockOptions()
-    }
   } catch (e) {
     syncMsg.value = '同步失败: ' + (e.response?.data?.detail || e.message)
     syncMsgType.value = 'error'
   } finally {
     syncing.value = false
-  }
-}
-
-async function loadStockOptions() {
-  stockListLoading.value = true
-  try {
-    const { data } = await getStockList()
-    const map = {}
-    stockOptions.value = data.map(s => {
-      const label = s.stock_name ? `${s.stock_code} ${s.stock_name}` : s.stock_code
-      map[s.stock_code] = s.stock_name || ''
-      return { value: s.stock_code, label }
-    })
-    stockNameMap.value = map
-  } finally {
-    stockListLoading.value = false
   }
 }
 
@@ -146,7 +155,5 @@ async function onFetch() {
   fetching.value = false
 }
 
-onMounted(() => {
-  loadStockOptions()
-})
+
 </script>

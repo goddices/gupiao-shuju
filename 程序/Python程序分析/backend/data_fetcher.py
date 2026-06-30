@@ -167,9 +167,8 @@ def fetch_stock_data_full(
     if not existing.empty:
         exist_set = set(pd.to_datetime(existing["trade_date"]).dt.date)
 
-    # 使用 Pandas Series 进行 isin 判断（兼容性更好）
-    date_series = pd.Series(df.index.date)  # 转为 Series
-    mask = date_series.isin(exist_set)  # 返回布尔 Series
+    # 直接使用 df.index.isin，索引自动对齐，不会报错
+    mask = df.index.isin(exist_set)
     new_rows = df[~mask].copy()
     update_rows = df[mask].copy()
 

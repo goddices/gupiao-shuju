@@ -10,6 +10,11 @@ export function getStockList() {
   return api.get('/stocks')
 }
 
+// 全量股票代码和名称（用于数据管理页搜索选择）
+export function searchStockInfo(q) {
+  return api.get('/stocks/info', { params: { q } })
+}
+
 // 日K线数据
 export function getStockQuotes(code, params = {}) {
   return api.get(`/stocks/${code}/quotes`, { params })

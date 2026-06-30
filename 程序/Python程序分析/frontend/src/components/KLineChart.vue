@@ -44,7 +44,7 @@ function buildOption(rawData) {
           收盘: ${vals[2]}<br/>
           最低: ${vals[3]}<br/>
           最高: ${vals[4]}<br/>
-          成交量: ${v ? (v.data / 10000).toFixed(0) + '万' : '-'}
+          成交量: ${v ? (v.value / 10000).toFixed(0) + '万' : '-'}
         `
       },
     },

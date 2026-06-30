@@ -2,11 +2,7 @@
   <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
       <h2 style="margin: 0">股票列表</h2>
-      <a-space>
-        <a-button type="primary" @click="syncStocks" :loading="syncing">
-          同步股票列表
-        </a-button>
-      </a-space>
+       
     </div>
 
     <a-alert

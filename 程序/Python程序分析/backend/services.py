@@ -50,6 +50,22 @@ def get_available_stocks(db: Session) -> list[dict]:
     ]
 
 
+def get_all_stock_infos(db: Session, q: str = None) -> list[dict]:
+    """获取 stock_info 中全部股票，支持按代码或名称搜索"""
+    query = db.query(StockInfo.stock_code, StockInfo.stock_name, StockInfo.market)
+    if q:
+        pattern = f"%{q}%"
+        query = query.filter(
+            StockInfo.stock_code.like(pattern) |
+            StockInfo.stock_name.like(pattern)
+        )
+    rows = query.order_by(StockInfo.stock_code).limit(100).all()
+    return [
+        {"stock_code": r.stock_code, "stock_name": r.stock_name, "market": r.market}
+        for r in rows
+    ]
+
+
 def get_stock_name(db: Session, stock_code: str) -> Optional[str]:
     """获取单只股票的名称"""
     row = (

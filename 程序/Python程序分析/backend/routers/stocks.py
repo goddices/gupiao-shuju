@@ -10,12 +10,14 @@ from schemas import (
     QuoteListResponse,
     StockStatsOut,
     StockSummaryOut,
+    StockInfoOut,
     StockInfoSyncOut,
     StockFetchOut,
     DividendEventOut,
 )
 from services import (
     get_available_stocks,
+    get_all_stock_infos,
     get_stock_quotes,
     get_stock_stats,
     get_stock_dividends,
@@ -30,6 +32,15 @@ router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 def list_stocks(db: Session = Depends(get_db)):
     """获取所有有数据的股票列表"""
     return get_available_stocks(db)
+
+
+@router.get("/info", response_model=list[StockInfoOut])
+def list_stock_infos(
+    q: str = Query(None, description="搜索关键字（按代码或名称模糊匹配）"),
+    db: Session = Depends(get_db),
+):
+    """获取全量股票代码和名称（用于数据管理页搜索选择）"""
+    return get_all_stock_infos(db, q=q)
 
 
 @router.post("/sync", response_model=StockInfoSyncOut)

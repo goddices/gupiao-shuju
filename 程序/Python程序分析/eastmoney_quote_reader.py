@@ -118,9 +118,9 @@ def generate_eastmoney_cookie_str():
     # 当前时间字符串（用于 st_sp）
     current_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    # 辅助：生成32位十六进制随机串
-    def random_hex32():
-        return secrets.token_hex(16)
+    # 生成 32 位十六进制随机串（模拟浏览器指纹）
+    def random_hex(length=32):
+        return secrets.token_hex(length // 2)
 
     # 辅助：生成24位字母数字混合串（含一个短横线）
     def random_alnum(length=24):
@@ -137,23 +137,31 @@ def generate_eastmoney_cookie_str():
         r2 = str(random.randint(1000000000, 9999999999))
         return f"{current_ms}-{r1}-{r2}"
 
+    
+    # 生成 st_pvi（14位数字）
+    st_pvi = str(random.randint(10000000000000, 99999999999999))
+
+    # 生成 st_si（14位数字）
+    st_si = str(random.randint(10000000000000, 99999999999999))
+    
     # 构建 Cookie 字典
     cookies = {
-        # 随机ID（每次不同）
-        "qgqp_b_id": "f4748f77325434072983eb6c8d3b1787",
-        "st_nvi": random_alnum(24),
-        "nid18": "03c6d02868a9633902b24e9d0c2bf5a5",
+        "fullscreengg": "1",
+        "fullscreengg2": "1",
+        "st_asi": "delete",
+        "qgqp_b_id": random_hex(32),
+        "nid18": random_hex(32),
         "nid18_create_time": str(current_ms),
-        "gviem": "YQiok4IwaN9QhfQ49tnGg622f",
+        "gviem": random_alnum(24),
         "gviem_create_time": str(current_ms),
-        "websitepoptg_api_time": str(current_ms),
+        "st_nvi": random_alnum(24),
+        "st_pvi": st_pvi,
+        "st_si": st_si,
+        "st_sn": "1",                        # 会话步数，从 1 开始
         "st_sp": current_time_str,
-        # 会话信息
-        "st_psi": gen_st_psi(),
-        "st_pvi": str(random.randint(10000000000000, 99999999999999)),
-        "st_si": str(random.randint(10000000000000, 99999999999999)),
-        "st_sn": "1",  # 初始步数
         "st_inirUrl": "https%3A%2F%2Fwww.eastmoney.com%2F",
+        "websitepoptg_api_time": str(current_ms),
+        "st_psi": gen_st_psi(),
     }
 
     # 拼接成字符串
