@@ -22,6 +22,7 @@ class DailyQuoteOut(BaseModel):
 class QuoteListResponse(BaseModel):
     """日K线分页响应"""
     stock_code: str
+    stock_name: Optional[str] = None
     total: int
     page: int
     page_size: int
@@ -32,6 +33,7 @@ class QuoteListResponse(BaseModel):
 class StockStatsOut(BaseModel):
     """单只股票统计"""
     stock_code: str
+    stock_name: Optional[str] = None
     total_records: int
     earliest_date: Optional[date] = None
     latest_date: Optional[date] = None
@@ -40,10 +42,28 @@ class StockStatsOut(BaseModel):
     min_close: Optional[float] = None
 
 
+# ---- 股票信息 ----
+class StockInfoOut(BaseModel):
+    """股票基本信息"""
+    stock_code: str
+    stock_name: str
+    market: str
+
+    model_config = {"from_attributes": True}
+
+
+class StockInfoSyncOut(BaseModel):
+    """股票列表同步结果"""
+    status: str
+    message: str
+    total: int = 0
+
+
 # ---- 股票概要 ----
 class StockSummaryOut(BaseModel):
     """股票列表项"""
     stock_code: str
+    stock_name: Optional[str] = None
     total_records: int
     earliest_date: Optional[date] = None
     latest_date: Optional[date] = None

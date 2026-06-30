@@ -359,6 +359,134 @@ class EastmoneyQuoteReader:
         )
 
 
+class EastmoneyStockListReader:
+    """
+    东方财富股票列表读取器（异步）
+    用于获取全市场股票基本信息（代码、名称、价格、涨跌幅等）
+    """
+
+    BASE_URL = "https://push2.eastmoney.com/api/qt/clist/get"
+
+    def __init__(self, cookie: Optional[str] = None):
+        self.headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Referer": "https://quote.eastmoney.com/",
+        }
+        if cookie:
+            self.headers["Cookie"] = cookie
+        else:
+            self.headers["Cookie"] = generate_eastmoney_cookie_str()
+
+    def _build_params(self, fs: str, page: int, size: int = 100) -> Dict[str, Any]:
+        """
+        构建请求参数
+        :param fs: 板块过滤条件（如 'm:0+t:6,m:0+t:80,...'）
+        :param page: 页码（从1开始）
+        :param size: 每页数量（最大通常为100）
+        """
+        cb = f"jQuery{random.randint(1000000000, 9999999999)}_{int(time.time()*1000)}"
+        return {
+            "fltt": "1",
+            "invt": "2",
+            "wbp2u": "|0|0|0|web",
+            "cb": cb,
+            "fields": "f12,f13,f14,f1,f2,f4,f11,f152",  # 代码,市场,名称,最新价,涨跌幅,涨跌额,成交量,市盈率
+            "fs": fs,
+            "ut": "433fd2d0e98eaf36ad3d5001f088614d",
+            "fid": "f11",
+            "po": "1",
+            "pn": str(page),
+            "np": "1",
+            "pz": str(size),
+            "dect": "1",
+            "_": str(int(time.time() * 1000)),
+        }
+
+    async def fetch_page(
+        self, session: aiohttp.ClientSession, fs: str, page: int, size: int = 100
+    ) -> Optional[List[Dict]]:
+        """
+        异步获取单页股票列表
+        :return: 解析后的列表（每个元素为 dict），若失败或无数据返回 None
+        """
+        params = self._build_params(fs, page, size)
+        cb = params["cb"]
+
+        try:
+            async with session.get(self.BASE_URL, params=params) as resp:
+                if resp.status != 200:
+                    print(f"HTTP {resp.status} on page {page}")
+                    return None
+                text = await resp.text()
+
+                if text.startswith(cb) and text.endswith(");"):
+                    json_str = text[len(cb) + 1 : -2]
+                else:
+                    json_str = text
+
+                data = json.loads(json_str)
+                if data.get("rc") != 0:
+                    print(f"API 返回错误 rc={data.get('rc')}, msg={data.get('msg')}")
+                    return None
+
+                diff = data.get("data", {}).get("diff", [])
+                if not diff:
+                    return None
+
+                parsed = []
+                for item in diff:
+                    parsed.append(
+                        {
+                            "code": item.get("f12"),
+                            "market": item.get("f13"),
+                            "name": item.get("f14"),
+                            "price": item.get("f1"),
+                            "change_pct": item.get("f2"),
+                            "change_amount": item.get("f4"),
+                            "volume": item.get("f11"),
+                            "pe": item.get("f152"),
+                        }
+                    )
+                return parsed
+
+        except Exception as e:
+            print(f"Error fetching page {page}: {e}")
+            return None
+
+    async def fetch_all_stocks(
+        self, fs: str, size: int = 100, max_pages: int = 200
+    ) -> List[Dict]:
+        """
+        循环获取所有股票（直到某页无数据或达到最大页数）
+        :param fs: 板块过滤条件
+        :param size: 每页大小（默认100，东方财富最大通常为100）
+        :param max_pages: 最大页数，防止死循环
+        :return: 所有股票的列表
+        """
+        all_stocks = []
+        page = 1
+
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            while page <= max_pages:
+                print(f"正在获取第 {page} 页...")
+                page_data = await self.fetch_page(session, fs, page, size)
+                if not page_data:
+                    print("无数据，停止翻页")
+                    break
+                all_stocks.extend(page_data)
+                if len(page_data) < size:
+                    print("已获取最后一页")
+                    break
+                page += 1
+
+        print(f"共获取 {len(all_stocks)} 条股票记录")
+        return all_stocks
+
+
 # 示例用法
 if __name__ == "__main__":
     # 创建行情读取器实例

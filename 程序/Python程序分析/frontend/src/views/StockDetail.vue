@@ -1,7 +1,7 @@
 <template>
   <div>
     <a-page-header
-      :title="`${stockCode} 行情数据`"
+      :title="stockName ? `${stockCode} ${stockName}` : `${stockCode} 行情数据`"
       @back="() => $router.push('/stocks')"
     />
 
@@ -80,6 +80,7 @@ const stockCode = computed(() => route.params.code)
 const loading = ref(false)
 const quotes = ref([])
 const stats = ref({})
+const stockName = ref('')
 const adjustType = ref('none')
 const dateRange = ref(null)
 
@@ -148,6 +149,9 @@ onMounted(async () => {
   try {
     const { data } = await getStockStats(stockCode.value)
     stats.value = data
+    if (data.stock_name) {
+      stockName.value = data.stock_name
+    }
   } catch { /* ignore */ }
   fetchQuotes()
 })

@@ -25,6 +25,11 @@ export function getStockDividends(code, params = {}) {
   return api.get(`/stocks/${code}/dividends`, { params })
 }
 
+// 同步股票代码列表
+export function syncStockList() {
+  return api.post('/stocks/sync')
+}
+
 // 触发数据拉取
 export function fetchStockData(stockCodes, startDate = '2006-01-01') {
   return api.post('/data/fetch', {

@@ -35,6 +35,18 @@ class StockDailyQuote(Base):
     backward_close = Column(Numeric(12, 4))
 
 
+class StockInfo(Base):
+    """股票基本信息（代码、名称、市场）"""
+    __tablename__ = "stock_info"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stock_code = Column(String(20), nullable=False, unique=True, index=True)
+    stock_name = Column(String(100), nullable=False)
+    market = Column(String(10), nullable=False, comment="市场: SH=上海, SZ=深圳")
+    created_at = Column(TIMESTAMP, server_default=None)
+    updated_at = Column(TIMESTAMP, server_default=None)
+
+
 class StockDividendEvent(Base):
     __tablename__ = "stock_dividend_events"
     __table_args__ = (

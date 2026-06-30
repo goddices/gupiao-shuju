@@ -1,15 +1,21 @@
 """股票行情数据查询服务"""
+import sys
+import os
+import asyncio
 from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
-from models import StockDailyQuote, StockDividendEvent
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models import StockDailyQuote, StockDividendEvent, StockInfo
+from eastmoney_quote_reader import EastmoneyStockListReader
 
 
 def get_available_stocks(db: Session) -> list[dict]:
-    """获取数据库中有数据的所有股票概要"""
+    """获取数据库中有数据的所有股票概要（含名称）"""
     rows = (
         db.query(
             StockDailyQuote.stock_code,
@@ -21,15 +27,87 @@ def get_available_stocks(db: Session) -> list[dict]:
         .order_by(StockDailyQuote.stock_code)
         .all()
     )
+    # 批量查询股票名称
+    codes = [r.stock_code for r in rows]
+    name_map = {}
+    if codes:
+        info_rows = (
+            db.query(StockInfo.stock_code, StockInfo.stock_name)
+            .filter(StockInfo.stock_code.in_(codes))
+            .all()
+        )
+        name_map = {r.stock_code: r.stock_name for r in info_rows}
+
     return [
         {
             "stock_code": r.stock_code,
+            "stock_name": name_map.get(r.stock_code),
             "total_records": r.total_records,
             "earliest_date": r.earliest_date,
             "latest_date": r.latest_date,
         }
         for r in rows
     ]
+
+
+def get_stock_name(db: Session, stock_code: str) -> Optional[str]:
+    """获取单只股票的名称"""
+    row = (
+        db.query(StockInfo.stock_name)
+        .filter(StockInfo.stock_code == stock_code)
+        .first()
+    )
+    return row.stock_name if row else None
+
+
+def sync_stock_list(db: Session) -> dict:
+    """
+    从东方财富同步全市场股票代码和名称到 stock_info 表。
+    返回 {"status": str, "message": str, "total": int}
+    """
+    # 全A股过滤条件: 沪市主板+科创板 + 深市主板+创业板
+    fs = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23"
+
+    async def _sync():
+        reader = EastmoneyStockListReader()
+        stocks = await reader.fetch_all_stocks(fs, size=100, max_pages=200)
+        return stocks
+
+    try:
+        stocks = asyncio.run(_sync())
+    except Exception as e:
+        return {"status": "error", "message": f"同步失败: {str(e)}", "total": 0}
+
+    if not stocks:
+        return {"status": "ok", "message": "未获取到股票数据", "total": 0}
+
+    new_count = 0
+    update_count = 0
+    for s in stocks:
+        market = "SH" if s["market"] == 1 else "SZ"
+        existing = (
+            db.query(StockInfo)
+            .filter(StockInfo.stock_code == s["code"])
+            .first()
+        )
+        if existing:
+            if existing.stock_name != s["name"]:
+                existing.stock_name = s["name"]
+                update_count += 1
+        else:
+            db.add(StockInfo(
+                stock_code=s["code"],
+                stock_name=s["name"],
+                market=market,
+            ))
+            new_count += 1
+
+    db.commit()
+    return {
+        "status": "ok",
+        "message": f"同步完成: 新增 {new_count} 只, 更新 {update_count} 只",
+        "total": new_count + update_count,
+    }
 
 
 def get_stock_quotes(
@@ -68,6 +146,7 @@ def get_stock_quotes(
 
     return {
         "stock_code": stock_code,
+        "stock_name": get_stock_name(db, stock_code),
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -110,6 +189,7 @@ def get_stock_stats(db: Session, stock_code: str) -> dict:
 
     return {
         "stock_code": stock_code,
+        "stock_name": get_stock_name(db, stock_code),
         "total_records": stats.total_records,
         "earliest_date": stats.earliest_date,
         "latest_date": stats.latest_date,
