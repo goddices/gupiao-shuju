@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
-  timeout: 30000,
+  timeout: 120000,
 })
 
 // 股票列表
@@ -28,6 +28,11 @@ export function getStockDividends(code, params = {}) {
 // 同步股票代码列表
 export function syncStockList() {
   return api.post('/stocks/sync')
+}
+
+// 同步单只股票行情（不复权+前复权+后复权）
+export function fetchStockQuotes(code) {
+  return api.post(`/stocks/${code}/fetch`)
 }
 
 // 触发数据拉取

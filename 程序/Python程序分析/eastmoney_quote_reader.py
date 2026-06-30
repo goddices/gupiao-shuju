@@ -139,17 +139,12 @@ def generate_eastmoney_cookie_str():
 
     # 构建 Cookie 字典
     cookies = {
-        # 固定值
-        "fullscreengg": "1",
-        "fullscreengg2": "1",
-        "st_asi": "delete",
         # 随机ID（每次不同）
-        "qgqp_b_id": random_hex32(),
-        "nid18": random_hex32(),
+        "qgqp_b_id": "f4748f77325434072983eb6c8d3b1787",
         "st_nvi": random_alnum(24),
-        "gviem": random_alnum(24),
-        # 时间戳
+        "nid18": "03c6d02868a9633902b24e9d0c2bf5a5",
         "nid18_create_time": str(current_ms),
+        "gviem": "YQiok4IwaN9QhfQ49tnGg622f",
         "gviem_create_time": str(current_ms),
         "websitepoptg_api_time": str(current_ms),
         "st_sp": current_time_str,
@@ -233,6 +228,7 @@ class EastmoneyQuoteReader:
 
             # 发送HTTP请求
             async with aiohttp.ClientSession(headers=self.headers) as session:
+                print("headers:", self.headers)
                 async with session.get(self.base_url, params=params) as response:
                     if response.status == 200:
                         content = await response.text()

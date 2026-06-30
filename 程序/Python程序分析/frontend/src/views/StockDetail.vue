@@ -26,6 +26,13 @@
 
     <!-- 工具栏 -->
     <a-space style="margin-bottom: 16px">
+      <a-button
+        type="primary"
+        :loading="syncing"
+        @click="syncQuotes"
+      >
+        同步行情
+      </a-button>
       <span>复权类型：</span>
       <a-radio-group v-model:value="adjustType" @change="fetchQuotes">
         <a-radio-button value="none">不复权</a-radio-button>
@@ -38,6 +45,17 @@
         @change="fetchQuotes"
       />
     </a-space>
+
+    <!-- 同步结果通知 -->
+    <a-alert
+      v-if="syncResult"
+      :message="syncResult.title"
+      :description="syncResult.description"
+      :type="syncResult.type"
+      closable
+      style="margin-bottom: 16px"
+      @close="syncResult = null"
+    />
 
     <!-- K线图 -->
     <a-card title="K线图" style="margin-bottom: 24px">
@@ -68,16 +86,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
-import { getStockQuotes, getStockStats } from '../api'
+import { getStockQuotes, getStockStats, fetchStockQuotes } from '../api'
 import KLineChart from '../components/KLineChart.vue'
 
 const route = useRoute()
 const stockCode = computed(() => route.params.code)
 
 const loading = ref(false)
+const syncing = ref(false)
+const syncResult = ref(null)
 const quotes = ref([])
 const stats = ref({})
 const stockName = ref('')
@@ -119,6 +139,54 @@ function calcChange(data) {
   })
 }
 
+async function syncQuotes() {
+  syncing.value = true
+  syncResult.value = null
+  try {
+    const { data } = await fetchStockQuotes(stockCode.value)
+    if (data.status === 'ok') {
+      syncResult.value = {
+        type: 'success',
+        title: '同步成功',
+        description: data.details.join('；'),
+      }
+    } else if (data.status === 'no_new_data') {
+      syncResult.value = {
+        type: 'info',
+        title: '数据已是最新',
+        description: data.details.join('；'),
+      }
+    } else {
+      syncResult.value = {
+        type: 'warning',
+        title: '部分成功',
+        description: data.details.join('；'),
+      }
+    }
+    // 刷新统计和K线
+    await refreshStats()
+    await fetchQuotes()
+  } catch (e) {
+    syncResult.value = {
+      type: 'error',
+      title: '同步失败',
+      description: e.response?.data?.detail || e.message,
+    }
+  } finally {
+    syncing.value = false
+  }
+}
+
+async function refreshStats() {
+  try {
+    const { data } = await getStockStats(stockCode.value)
+    stats.value = data
+    if (data.stock_name) {
+      stockName.value = data.stock_name
+    }
+  } catch { /* ignore */ }
+}
+
 async function fetchQuotes() {
   loading.value = true
   try {
@@ -146,13 +214,7 @@ function onTableChange(pag) {
 }
 
 onMounted(async () => {
-  try {
-    const { data } = await getStockStats(stockCode.value)
-    stats.value = data
-    if (data.stock_name) {
-      stockName.value = data.stock_name
-    }
-  } catch { /* ignore */ }
+  await refreshStats()
   fetchQuotes()
 })
 </script>

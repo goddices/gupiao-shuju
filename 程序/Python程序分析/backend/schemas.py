@@ -97,3 +97,11 @@ class FetchResponse(BaseModel):
     status: str
     message: str
     details: list[dict] = []
+
+
+class StockFetchOut(BaseModel):
+    """单只股票行情同步结果"""
+    stock_code: str
+    status: str  # ok / no_new_data / partial_error / error
+    total_rows: int
+    details: list[str] = []

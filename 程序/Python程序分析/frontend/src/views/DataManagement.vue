@@ -21,8 +21,11 @@
         />
       </a-card>
 
-      <!-- 拉取股票数据 -->
-      <a-card title="拉取股票数据">
+      <!-- 批量拉取 -->
+      <a-card title="批量拉取行情数据">
+        <p style="color: #666; margin-bottom: 12px">
+          选择多只股票批量拉取行情。单只股票的同步建议在详情页点击「同步行情」按钮。
+        </p>
         <a-form layout="vertical" :model="formState" @finish="onFetch">
           <a-form-item label="选择股票">
             <a-select
@@ -36,18 +39,9 @@
               :loading="stockListLoading"
             />
           </a-form-item>
-          <a-form-item label="或手动输入代码（多个用逗号分隔）">
-            <a-input
-              v-model:value="formState.stockCodes"
-              placeholder="如: 601857,600036,000858"
-            />
-          </a-form-item>
-          <a-form-item label="起始日期">
-            <a-input v-model:value="formState.startDate" placeholder="2006-01-01" />
-          </a-form-item>
           <a-form-item>
             <a-button type="primary" html-type="submit" :loading="fetching">
-              开始拉取
+              批量拉取
             </a-button>
           </a-form-item>
         </a-form>
@@ -56,10 +50,16 @@
           <a-alert
             v-for="r in results"
             :key="r.stock_code"
-            :type="r.new_rows > 0 ? 'success' : 'info'"
-            :message="`${r.stock_code} ${stockNameMap[r.stock_code] || ''}: ${r.message}`"
+            :type="r.status === 'ok' ? 'success' : r.status === 'error' ? 'error' : 'info'"
             style="margin-bottom: 8px"
-          />
+          >
+            <template #message>
+              <strong>{{ r.stock_code }}</strong>
+              <span v-if="stockNameMap[r.stock_code]"> {{ stockNameMap[r.stock_code] }}</span>
+              <span v-if="r.details?.length">: {{ r.details.join('；') }}</span>
+              <span v-else>: {{ r.message || r.status }}</span>
+            </template>
+          </a-alert>
         </div>
       </a-card>
     </a-space>
@@ -67,13 +67,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
-import { fetchStockData, getStockList, syncStockList } from '../api'
+import { ref, reactive, onMounted } from 'vue'
+import { getStockList, syncStockList, fetchStockQuotes } from '../api'
 
 const formState = reactive({
   selectedCodes: [],
-  stockCodes: '',
-  startDate: '2006-01-01'
 })
 
 const fetching = ref(false)
@@ -87,7 +85,6 @@ const stockListLoading = ref(false)
 const stockOptions = ref([])
 const stockNameMap = ref({})
 
-// 按名称搜索过滤
 function filterOption(input, option) {
   return option.label.toLowerCase().includes(input.toLowerCase())
 }
@@ -127,21 +124,26 @@ async function loadStockOptions() {
 }
 
 async function onFetch() {
-  // 合并下拉选择和手动输入的代码
-  const manualCodes = formState.stockCodes.split(/[,，]/).map(s => s.trim()).filter(Boolean)
-  const codes = [...new Set([...formState.selectedCodes, ...manualCodes])]
-  if (codes.length === 0) return
+  if (formState.selectedCodes.length === 0) return
 
   fetching.value = true
   results.value = []
-  try {
-    const { data } = await fetchStockData(codes, formState.startDate)
-    results.value = data.details || []
-  } catch (error) {
-    console.error(error)
-  } finally {
-    fetching.value = false
+
+  // 逐只拉取（三种复权并行在服务端已完成）
+  for (const code of formState.selectedCodes) {
+    try {
+      const { data } = await fetchStockQuotes(code)
+      results.value.push(data)
+    } catch (e) {
+      results.value.push({
+        stock_code: code,
+        status: 'error',
+        details: [e.response?.data?.detail || e.message],
+      })
+    }
   }
+
+  fetching.value = false
 }
 
 onMounted(() => {

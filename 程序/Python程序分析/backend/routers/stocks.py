@@ -11,6 +11,7 @@ from schemas import (
     StockStatsOut,
     StockSummaryOut,
     StockInfoSyncOut,
+    StockFetchOut,
     DividendEventOut,
 )
 from services import (
@@ -20,6 +21,7 @@ from services import (
     get_stock_dividends,
     sync_stock_list,
 )
+from data_fetcher import fetch_stock_data_full
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
@@ -34,6 +36,15 @@ def list_stocks(db: Session = Depends(get_db)):
 def sync_stocks(db: Session = Depends(get_db)):
     """从东方财富同步全市场股票代码和名称"""
     return sync_stock_list(db)
+
+
+@router.post("/{stock_code}/fetch", response_model=StockFetchOut)
+def fetch_stock_quotes(stock_code: str, db: Session = Depends(get_db)):
+    """同步单只股票的行情数据（不复权+前复权+后复权）"""
+    result = fetch_stock_data_full(db, stock_code)
+    if result["status"] == "error":
+        raise HTTPException(status_code=500, detail="; ".join(result["details"]))
+    return result
 
 
 @router.get("/{stock_code}/quotes", response_model=QuoteListResponse)

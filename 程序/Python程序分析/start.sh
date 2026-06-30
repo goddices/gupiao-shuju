@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# start.sh — 启动前后端服务
+# start.sh — 启动前后端服务（后端使用 uvicorn --reload）
 # 用法: ./start.sh          (前台运行，Ctrl+C 同时停止)
 #       ./start.sh -b        (后台运行)
 #
@@ -34,10 +34,11 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  股票分析系统 - 启动中...${NC}"
 echo -e "${GREEN}========================================${NC}"
 
-# 启动后端 (FastAPI on port 8000)
-echo -e "${YELLOW}[1/2] 启动后端服务 (FastAPI :8000)...${NC}"
+# 启动后端 (uvicorn with auto-reload)
+echo -e "${YELLOW}[1/2] 启动后端服务 (uvicorn :8000, 自动重载)...${NC}"
 cd "$BACKEND_DIR"
-python3 main.py &
+# 假设 main.py 中 app 对象名为 app，若不同请修改
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 echo -e "${GREEN}  后端 PID: $BACKEND_PID${NC}"
 
