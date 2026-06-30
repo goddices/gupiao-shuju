@@ -234,9 +234,13 @@ class EastmoneyQuoteReader:
                 "_": str(int(datetime.now().timestamp() * 1000)),
             }
 
+            # 50% 概率不带 Cookie，降低被识别为爬虫的风险
+            headers = dict(self.headers)
+            if random.random() < 0.5:
+                headers.pop("Cookie", None)
+
             # 发送HTTP请求
-            async with aiohttp.ClientSession(headers=self.headers) as session:
-                print("headers:", self.headers)
+            async with aiohttp.ClientSession(headers=headers) as session:
                 async with session.get(self.base_url, params=params) as response:
                     if response.status == 200:
                         content = await response.text()
