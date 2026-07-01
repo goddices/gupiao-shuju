@@ -74,26 +74,23 @@ class StockInfo:
 
     stock_code: str
     market: str
-    stock_name: Optional[str] = None  # f58: 股票名称
-    # 基础数据
-    total_market_cap: Optional[float] = None  # f190: 总市值
-    float_market_cap: Optional[float] = None  # f189: 流通市值
-    eps: Optional[float] = None  # f162: 每股收益
-    pe_static: Optional[float] = None  # f152: 静态市盈率
-    pb_old: Optional[float] = None  # f167: 市净率（旧）
-    total_shares: Optional[float] = None  # f92: 总股本
-    navps: Optional[float] = None  # f59: 每股净资产
-    pe_dynamic_raw: Optional[float] = None  # f183: 动态市盈率原始值
-    revenue_raw: Optional[float] = None  # f184: 营业总收入原始值
-    float_shares: Optional[float] = None  # f105: 流通股本
-    net_profit_raw: Optional[float] = None  # f185: 净利润原始值
-    gross_margin: Optional[float] = None  # f186: 毛利率（%）
-    net_margin: Optional[float] = None  # f187: 净利率（%）
-    roe: Optional[float] = None  # f173: ROE（%）
-    debt_ratio: Optional[float] = None  # f188: 资产负债率（%）
-    list_date: Optional[str] = None  # f189: 上市日期（从原始时间戳转换）
-    retained_eps_raw: Optional[float] = None  # f116: 每股未分配利润原始值
-    revenue_yoy_raw: Optional[float] = None  # f85: 营收同比增长原始值
-    profit_yoy_raw: Optional[float] = None  # f117: 净利润同比增长原始值
-    pb: Optional[float] = None  # f62: 市净率（新版）
-    change_pct: Optional[float] = None  # f55: 涨跌幅（%）
+    stock_name: Optional[str] = None        # f58: 股票名称
+    total_market_cap: Optional[float] = None  # f57: 总市值（亿元）
+    float_market_cap: Optional[float] = None  # f107: 流通市值（亿元）
+    eps: Optional[float] = None             # f162: 每股收益
+    pe_dynamic: Optional[float] = None      # f183: PE(动)
+    navps: Optional[float] = None           # f59: 每股净资产
+    pb: Optional[float] = None              # f62: 市净率
+    revenue: Optional[float] = None         # f184: 总营收（亿元）
+    revenue_yoy: Optional[float] = None     # f85: 营收同比（%）
+    net_profit: Optional[float] = None      # f185: 净利润（亿元）
+    profit_yoy: Optional[float] = None      # f117: 净利润同比（%）
+    gross_margin: Optional[float] = None    # f186: 毛利率（%）
+    net_margin: Optional[float] = None      # f187: 净利率（%）
+    roe: Optional[float] = None             # f173: ROE（%）
+    debt_ratio: Optional[float] = None      # f188: 资产负债率（%）
+    total_shares: Optional[float] = None    # f92: 总股本（亿股）
+    float_shares: Optional[float] = None    # f105: 流通股本（亿股）
+    retained_eps: Optional[float] = None    # f116: 每股未分配利润
+    list_date: Optional[str] = None         # f84: 上市日期
+    change_pct: Optional[float] = None      # f55: 涨跌幅（%）

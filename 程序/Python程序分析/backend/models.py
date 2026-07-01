@@ -66,7 +66,7 @@ class StockDividendEvent(Base):
 
 
 class StockCoreData(Base):
-    """个股核心数据（PE、PB、ROE、毛利率等）"""
+    """个股核心数据（PE、PB、ROE、市值、营收等）"""
     __tablename__ = "stock_core_data"
     __table_args__ = (
         UniqueConstraint("stock_code", name="uq_stock_core_code"),
@@ -76,11 +76,33 @@ class StockCoreData(Base):
     stock_code = Column(String(20), nullable=False, unique=True, index=True)
     stock_name = Column(String(100))
     market = Column(String(10))
-    gross_margin = Column(Numeric(12, 4))
-    net_margin = Column(Numeric(12, 4))
-    roe = Column(Numeric(12, 4))
-    debt_ratio = Column(Numeric(12, 4))
-    pb = Column(Numeric(12, 4))
-    change_pct = Column(Numeric(12, 4))
-    list_date = Column(String(20))
+    total_market_cap = Column(Numeric(24, 4))   # 总市值（亿元）
+    float_market_cap = Column(Numeric(24, 4))   # 流通市值（亿元）
+    eps = Column(Numeric(24, 4))                # 每股收益
+    pe_dynamic = Column(Numeric(24, 4))         # PE(动)
+    navps = Column(Numeric(24, 4))              # 每股净资产
+    pb = Column(Numeric(24, 4))                 # 市净率
+    revenue = Column(Numeric(24, 4))            # 总营收（亿元）
+    revenue_yoy = Column(Numeric(24, 4))        # 营收同比（%）
+    net_profit = Column(Numeric(24, 4))         # 净利润（亿元）
+    profit_yoy = Column(Numeric(24, 4))         # 净利润同比（%）
+    gross_margin = Column(Numeric(24, 4))       # 毛利率（%）
+    net_margin = Column(Numeric(24, 4))         # 净利率（%）
+    roe = Column(Numeric(24, 4))                # ROE（%）
+    debt_ratio = Column(Numeric(24, 4))         # 资产负债率（%）
+    total_shares = Column(Numeric(24, 4))       # 总股本（亿股）
+    float_shares = Column(Numeric(24, 4))       # 流通股本（亿股）
+    retained_eps = Column(Numeric(24, 4))       # 每股未分配利润
+    list_date = Column(String(20))              # 上市日期
+    change_pct = Column(Numeric(24, 4))         # 涨跌幅（%）
     updated_at = Column(TIMESTAMP, server_default=None)
+
+
+class StockCookie(Base):
+    """已验证可用的 Cookie"""
+    __tablename__ = "stock_cookies"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cookie = Column(String(4096), nullable=False)
+    fail_count = Column(Integer, default=0)
+    created_at = Column(TIMESTAMP, server_default=None)

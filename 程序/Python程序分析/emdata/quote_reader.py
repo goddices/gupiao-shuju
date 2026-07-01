@@ -5,10 +5,11 @@ import asyncio
 import aiohttp
 import json
 import random
+import time
 from datetime import datetime
 from typing import Optional, Any
 
-from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error
+from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error, SEED_COOKIE
 from emdata.enums import AdjustPriceType, PeriodType
 from emdata.models import StockQuoteLine, StockQuote, QuoteMappers
 from emdata.cookie import generate_eastmoney_cookie_str
@@ -79,40 +80,62 @@ class EastmoneyQuoteReader:
             "_": str(int(datetime.now().timestamp() * 1000)),
         }
 
+        async def _try_request(cookie_val, params, random_str, period_type):
+            """单次请求，成功返回 StockQuote，失败返回 None（网络异常向外抛出）"""
+            headers = dict(self.headers)
+            if cookie_val:
+                headers["Cookie"] = cookie_val
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.get(self.base_url, params=params) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        if content.startswith(random_str) and content.endswith(");"):
+                            json_content = content[len(random_str) + 1 : -2]
+                            return self._convert_quote(json_content, period_type)
+            return None
+
+        # Phase 1: 随机 Cookie
         for attempt in range(MAX_RETRIES + 1):
+            cookie = None
+            if attempt == 0:
+                if random.random() >= 1 / 3:
+                    cookie = self.cookie
+            else:
+                try:
+                    self.cookie = generate_eastmoney_cookie_str()
+                except Exception:
+                    self.cookie = f"fallback_{int(time.time()*1000)}"
+                cookie = self.cookie
+                self.headers["Cookie"] = cookie
+
             try:
-                # Cookie 策略: 第一次调用有1/3概率不带Cookie; 重试时换新Cookie
-                headers = dict(self.headers)
-                if attempt == 0:
-                    if random.random() < 1 / 3:
-                        headers.pop("Cookie", None)
-                else:
-                    new_cookie = generate_eastmoney_cookie_str()
-                    headers["Cookie"] = new_cookie
-                    self.headers["Cookie"] = new_cookie  # 更新实例headers以便后续复用
-
-                # 发送HTTP请求
-                async with aiohttp.ClientSession(headers=headers) as session:
-                    async with session.get(self.base_url, params=params) as response:
-                        if response.status == 200:
-                            content = await response.text()
-
-                            # 处理响应内容，移除JSONP包装
-                            if content.startswith(random_str) and content.endswith(");"):
-                                json_content = content[len(random_str) + 1 : -2]
-                                return self._convert_quote(json_content, period_type)
-                        else:
-                            print(f"HTTP {response.status}，准备重试...")
-
+                result = await _try_request(cookie, params, random_str, period_type)
+                if result is not None:
+                    self.last_used_cookie = cookie
+                    return result
             except aiohttp.ClientError as e:
                 if _is_connection_error(e) and attempt < MAX_RETRIES:
                     wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
-                    print(f"连接错误 ({e})，正在重试 (第{attempt + 1}/{MAX_RETRIES}次)...")
                     await asyncio.sleep(wait)
                     continue
                 print(f"获取行情数据失败: {e}")
             except Exception as e:
                 print(f"获取行情数据失败: {e}")
+
+        # Phase 2: 备用 Cookie 兜底
+        fallback = getattr(self, '_fallback_cookies', []) + [SEED_COOKIE]
+        seen = set()
+        for cookie in fallback:
+            if not cookie or cookie in seen:
+                continue
+            seen.add(cookie)
+            try:
+                result = await _try_request(cookie, params, random_str, period_type)
+                if result is not None:
+                    self.last_used_cookie = cookie
+                    return result
+            except Exception:
+                continue
 
         return None
 

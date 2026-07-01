@@ -8,7 +8,7 @@ emdata - 东方财富数据获取模块
     from emdata import generate_eastmoney_cookie_str
 """
 
-from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error
+from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error, SEED_COOKIE
 from emdata.enums import Market, AdjustPriceType, PeriodType
 from emdata.models import StockQuoteLine, StockQuote, QuoteMappers, StockInfo
 from emdata.cookie import generate_eastmoney_cookie_str

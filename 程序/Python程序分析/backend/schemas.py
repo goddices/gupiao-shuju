@@ -109,17 +109,29 @@ class StockFetchOut(BaseModel):
 
 # ---- 个股核心数据 ----
 class StockCoreDataOut(BaseModel):
-    """个股核心数据（PE、PB、ROE、毛利率等）"""
+    """个股核心数据（PE、PB、ROE、市值、营收等）"""
     stock_code: str
     market: str
     stock_name: Optional[str] = None
+    total_market_cap: Optional[float] = None
+    float_market_cap: Optional[float] = None
+    eps: Optional[float] = None
+    pe_dynamic: Optional[float] = None
+    navps: Optional[float] = None
+    pb: Optional[float] = None
+    revenue: Optional[float] = None
+    revenue_yoy: Optional[float] = None
+    net_profit: Optional[float] = None
+    profit_yoy: Optional[float] = None
     gross_margin: Optional[float] = None
     net_margin: Optional[float] = None
     roe: Optional[float] = None
     debt_ratio: Optional[float] = None
-    pb: Optional[float] = None
-    change_pct: Optional[float] = None
+    total_shares: Optional[float] = None
+    float_shares: Optional[float] = None
+    retained_eps: Optional[float] = None
     list_date: Optional[str] = None
+    change_pct: Optional[float] = None
 
 
 class StockCoreDataSyncOut(BaseModel):

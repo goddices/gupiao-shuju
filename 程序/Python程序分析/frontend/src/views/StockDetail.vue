@@ -34,14 +34,38 @@
         <a-col :span="6" v-if="coreData.stock_name">
           <a-statistic title="股票名称" :value="coreData.stock_name" />
         </a-col>
-        <a-col :span="6" v-if="coreData.pe_dynamic_raw != null">
-          <a-statistic title="PE（动态）" :value="coreData.pe_dynamic_raw" :precision="2" />
+        <a-col :span="6" v-if="coreData.total_market_cap != null">
+          <a-statistic title="总市值（亿）" :value="coreData.total_market_cap" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.float_market_cap != null">
+          <a-statistic title="流通市值（亿）" :value="coreData.float_market_cap" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.pe_dynamic != null">
+          <a-statistic title="PE（动）" :value="coreData.pe_dynamic" :precision="2" />
         </a-col>
         <a-col :span="6" v-if="coreData.pb != null">
           <a-statistic title="市净率（PB）" :value="coreData.pb" :precision="2" />
         </a-col>
+        <a-col :span="6" v-if="coreData.eps != null">
+          <a-statistic title="每股收益" :value="coreData.eps" :precision="4" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.navps != null">
+          <a-statistic title="每股净资产" :value="coreData.navps" :precision="2" />
+        </a-col>
         <a-col :span="6" v-if="coreData.roe != null">
           <a-statistic title="ROE（%）" :value="coreData.roe" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.revenue != null">
+          <a-statistic title="总营收（亿）" :value="coreData.revenue" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.revenue_yoy != null">
+          <a-statistic title="营收同比（%）" :value="coreData.revenue_yoy" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.net_profit != null">
+          <a-statistic title="净利润（亿）" :value="coreData.net_profit" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.profit_yoy != null">
+          <a-statistic title="利润同比（%）" :value="coreData.profit_yoy" :precision="2" />
         </a-col>
         <a-col :span="6" v-if="coreData.gross_margin != null">
           <a-statistic title="毛利率（%）" :value="coreData.gross_margin" :precision="2" />
@@ -51,6 +75,15 @@
         </a-col>
         <a-col :span="6" v-if="coreData.debt_ratio != null">
           <a-statistic title="资产负债率（%）" :value="coreData.debt_ratio" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.total_shares != null">
+          <a-statistic title="总股本（亿股）" :value="coreData.total_shares" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.float_shares != null">
+          <a-statistic title="流通股本（亿股）" :value="coreData.float_shares" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.retained_eps != null">
+          <a-statistic title="每股未分配利润" :value="coreData.retained_eps" :precision="4" />
         </a-col>
         <a-col :span="6" v-if="coreData.change_pct != null">
           <a-statistic title="涨跌幅（%）" :value="coreData.change_pct" :precision="2" />

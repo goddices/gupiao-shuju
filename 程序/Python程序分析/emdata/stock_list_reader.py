@@ -8,7 +8,7 @@ import random
 import time
 from typing import Optional, List, Dict, Any
 
-from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error
+from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error, SEED_COOKIE
 from emdata.cookie import generate_eastmoney_cookie_str
 
 
@@ -72,9 +72,9 @@ class EastmoneyStockListReader:
         params = self._build_params(fs, page, size)
         cb = params["cb"]
 
+        # Phase 1: 随机 Cookie
         for attempt in range(MAX_RETRIES + 1):
             try:
-                # Cookie 策略: 第一次调用有1/3概率不带Cookie; 重试时换新Cookie
                 req_headers = dict(self.base_headers)
                 if attempt == 0:
                     if not skip_first_cookie:
@@ -83,57 +83,67 @@ class EastmoneyStockListReader:
                     self.cookie = generate_eastmoney_cookie_str()
                     req_headers["Cookie"] = self.cookie
 
-                async with session.get(
-                    self.BASE_URL, params=params, headers=req_headers
-                ) as resp:
+                async with session.get(self.BASE_URL, params=params, headers=req_headers) as resp:
                     if resp.status != 200:
-                        print(f"HTTP {resp.status} on page {page}")
                         if attempt < MAX_RETRIES:
                             continue
                         return None
                     text = await resp.text()
-
                     if text.startswith(cb) and text.endswith(");"):
                         json_str = text[len(cb) + 1 : -2]
                     else:
                         json_str = text
-
                     data = json.loads(json_str)
                     if data.get("rc") != 0:
-                        print(f"API 返回错误 rc={data.get('rc')}, msg={data.get('msg')}")
                         return None
-
                     diff = data.get("data", {}).get("diff", [])
                     if not diff:
                         return None
-
-                    parsed = []
-                    for item in diff:
-                        parsed.append(
-                            {
-                                "code": item.get("f12"),
-                                "market": item.get("f13"),
-                                "name": item.get("f14"),
-                                "price": item.get("f1"),
-                                "change_pct": item.get("f2"),
-                                "change_amount": item.get("f4"),
-                                "volume": item.get("f11"),
-                                "pe": item.get("f152"),
-                            }
-                        )
-                    return parsed
-
+                    return [
+                        {"code": i.get("f12"), "market": i.get("f13"), "name": i.get("f14"),
+                         "price": i.get("f1"), "change_pct": i.get("f2"), "change_amount": i.get("f4"),
+                         "volume": i.get("f11"), "pe": i.get("f152")}
+                        for i in diff
+                    ]
             except aiohttp.ClientError as e:
                 if _is_connection_error(e) and attempt < MAX_RETRIES:
                     wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
-                    print(f"连接错误 ({e})，正在重试页面{page} (第{attempt + 1}/{MAX_RETRIES}次)...")
                     await asyncio.sleep(wait)
                     continue
-                print(f"Error fetching page {page}: {e}")
                 return None
-            except Exception as e:
-                print(f"Error fetching page {page}: {e}")
+            except Exception:
                 return None
+
+        # Phase 2: 备用 Cookie 兜底
+        fallback = getattr(self, '_fallback_cookies', []) + [SEED_COOKIE]
+        seen = set()
+        for cookie in fallback:
+            if not cookie or cookie in seen:
+                continue
+            seen.add(cookie)
+            try:
+                req_headers = dict(self.base_headers)
+                req_headers["Cookie"] = cookie
+                async with session.get(self.BASE_URL, params=params, headers=req_headers) as resp:
+                    if resp.status == 200:
+                        text = await resp.text()
+                        if text.startswith(cb) and text.endswith(");"):
+                            json_str = text[len(cb) + 1 : -2]
+                        else:
+                            json_str = text
+                        data = json.loads(json_str)
+                        if data.get("rc") == 0:
+                            diff = data.get("data", {}).get("diff", [])
+                            if diff:
+                                self.last_used_cookie = cookie
+                                return [
+                                    {"code": i.get("f12"), "market": i.get("f13"), "name": i.get("f14"),
+                                     "price": i.get("f1"), "change_pct": i.get("f2"), "change_amount": i.get("f4"),
+                                     "volume": i.get("f11"), "pe": i.get("f152")}
+                                    for i in diff
+                                ]
+            except Exception:
+                continue
 
         return None
 

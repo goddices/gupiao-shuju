@@ -9,7 +9,7 @@ import random
 import time
 from typing import Optional, Dict, Any
 
-from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error
+from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error, SEED_COOKIE
 from emdata.models import StockInfo
 from emdata.cookie import generate_eastmoney_cookie_str
 
@@ -22,22 +22,33 @@ class EastmoneyCurrentCoreDataReader:
 
     BASE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
 
-    # 字段映射表（stock/get 端点专用字段 ID）
-    # 注意: stock/get 和 clist/get 的字段 ID 含义不同！
+    # 字段映射表（stock/get 端点 —— 已验证的字段）
+    # 注意: stock/get 返回值已经是最终展示单位，无需额外转换
     FIELD_MAP = {
         "f58": "stock_name",       # 股票名称
-        "f55": "change_pct",       # 涨跌幅（%）
+        "f55": "change_pct",       # 涨跌幅（%）— 已经是百分数
         "f62": "pb",               # 市净率
-        "f186": "gross_margin",    # 毛利率（%）- 已为百分比无需转换
-        "f187": "net_margin",      # 净利率（%）- 已为百分比无需转换
-        "f188": "debt_ratio",      # 资产负债率（%）- 已为百分比无需转换
-        "f173": "roe",             # ROE（%）- 已为百分比无需转换
+        "f186": "gross_margin",    # 毛利率（%）— 已经是百分数
+        "f187": "net_margin",      # 净利率（%）— 已经是百分数
+        "f188": "debt_ratio",      # 资产负债率（%）— 已经是百分数
+        "f173": "roe",             # ROE（%）— 已经是百分数
+        "f184": "revenue",         # 营业总收入（原始单位）
+        "f185": "net_profit",      # 净利润（原始单位）
+        "f92": "total_shares",     # 总股本（原始单位）
+        "f105": "float_shares",    # 流通股本（原始单位）
+        "f162": "eps",             # 每股收益
+        "f59": "navps",            # 每股净资产
+        "f183": "pe_dynamic",      # PE(动)
+        "f116": "retained_eps",    # 每股未分配利润
+        "f189": "list_date",       # 上市日期（YYYYMMDD 整数，如 20210820）
+        "f57": "total_market_cap", # 总市值（原始单位）
+        "f107": "float_market_cap",# 流通市值（原始单位）
+        "f85": "revenue_yoy",      # 营收同比（原始单位）
+        "f117": "profit_yoy",      # 净利润同比（原始单位）
     }
 
-    # 不需要额外单位转换 —— stock/get 返回的数据已经是展示单位
+    # stock/get 返回值已为展示单位，不做转换
     DIVIDE_BY_10000 = set()
-
-    # 百分比字段不需要除以 100 —— stock/get 返回的百分比值已经是百分数
     PERCENT_FIELDS = set()
 
     def __init__(self, cookie: Optional[str] = None):
@@ -54,14 +65,11 @@ class EastmoneyCurrentCoreDataReader:
     def _build_params(self, market: str, stock_code: str) -> Dict[str, Any]:
         """构建请求参数"""
         cb = f"jQuery{random.randint(1000000000, 9999999999)}_{int(time.time()*1000)}"
-        # 额外请求 f189（上市日期）用于特殊解析
-        extra_fields = ["f189"]
-        all_fields = list(self.FIELD_MAP.keys()) + extra_fields
         return {
             "invt": "2",
             "fltt": "1",
             "cb": cb,
-            "fields": ",".join(all_fields),
+            "fields": ",".join(self.FIELD_MAP.keys()),
             "secid": f"{market}.{stock_code}",
             "ut": "fa5fd1943c7b386f172d6893dbfba10b",
             "wbp2u": "|0|0|0|web",
@@ -71,9 +79,19 @@ class EastmoneyCurrentCoreDataReader:
 
     def _convert_value(self, value, field_name: str):
         """将原始值转换为合适的单位，字符串字段原样返回"""
-        # 字符串字段（如 stock_name）原样返回
+        # 字符串字段原样返回
         if isinstance(value, str) and field_name == "stock_name":
             return value
+
+        # list_date: f189 是 YYYYMMDD 整数，转为日期字符串
+        if field_name == "list_date":
+            try:
+                ds = str(int(float(str(value))))
+                if len(ds) == 8:
+                    return f"{ds[:4]}-{ds[4:6]}-{ds[6:8]}"
+            except (ValueError, TypeError):
+                pass
+            return str(value)
         if value is None:
             return None
         try:
@@ -125,16 +143,6 @@ class EastmoneyCurrentCoreDataReader:
                     if converted is not None:
                         setattr(stock_info, attr_name, converted)
 
-            # 特殊处理: 上市日期从 f189 转换 (原始值为 YYYYMMDD 格式整数, 如 20071105)
-            raw_date = raw_data.get("f189")
-            if raw_date is not None and raw_date != "-":
-                try:
-                    date_str = str(int(float(str(raw_date))))
-                    if len(date_str) == 8:
-                        stock_info.list_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-                except (ValueError, TypeError):
-                    pass
-
             return stock_info
 
         except Exception as e:
@@ -145,47 +153,77 @@ class EastmoneyCurrentCoreDataReader:
         self,
         market: str,
         stock_code: str,
+        fallback_cookies: list = None,
     ) -> Optional[StockInfo]:
         """
         异步获取个股核心数据
-        :param market: 市场代码（"1"=上海, "0"=深圳，与 Market 枚举一致）
+        :param market: 市场代码
         :param stock_code: 6 位股票代码
+        :param fallback_cookies: 备用 Cookie 列表（从 DB 获取，失败时兜底）
         :return: StockInfo 对象，失败返回 None
         """
+        if fallback_cookies is None:
+            fallback_cookies = []
         params = self._build_params(market, stock_code)
+        self.last_used_cookie = None
 
-        for attempt in range(MAX_RETRIES + 1):
-            try:
-                # Cookie 策略: 第一次调用有1/3概率不带Cookie; 重试时换新Cookie
-                headers = dict(self.base_headers)
-                if attempt == 0:
-                    if random.random() < 1 / 3:
-                        pass  # 不带 Cookie
-                    else:
-                        headers["Cookie"] = self.cookie
-                else:
-                    self.cookie = generate_eastmoney_cookie_str()
-                    headers["Cookie"] = self.cookie
-
-                async with aiohttp.ClientSession(headers=headers) as session:
-                    async with session.get(self.BASE_URL, params=params) as resp:
-                        if resp.status != 200:
-                            print(f"HTTP {resp.status} for {stock_code}")
-                            if attempt < MAX_RETRIES:
-                                continue
-                            return None
+        async def _try_once(cookie: str = None):
+            """单次请求，成功返回 StockInfo，网络异常直接抛出，其他失败返回 None"""
+            headers = dict(self.base_headers)
+            if cookie:
+                headers["Cookie"] = cookie
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.get(self.BASE_URL, params=params) as resp:
+                    if resp.status == 200:
                         text = await resp.text()
                         return self._parse_response(text, market=market, stock_code=stock_code)
+                    else:
+                        print(f"HTTP {resp.status}")
+            return None
 
+        # Phase 1: 随机 Cookie（首次 1/3 概率不带）
+        for attempt in range(MAX_RETRIES + 1):
+            cookie = None
+            if attempt == 0:
+                if random.random() >= 1 / 3:
+                    cookie = self.cookie
+            else:
+                try:
+                    self.cookie = generate_eastmoney_cookie_str()
+                except Exception:
+                    self.cookie = f"retry_{attempt}"
+                cookie = self.cookie
+
+            try:
+                result = await _try_once(cookie)
+                if result is not None:
+                    self.last_used_cookie = cookie
+                    return result
             except aiohttp.ClientError as e:
                 if _is_connection_error(e) and attempt < MAX_RETRIES:
                     wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
-                    print(f"连接错误 ({e})，正在重试核心数据 {stock_code} (第{attempt + 1}/{MAX_RETRIES}次)...")
+                    print(f"连接错误 ({e})，重试 {stock_code} ({attempt + 1}/{MAX_RETRIES})...")
                     await asyncio.sleep(wait)
                     continue
                 print(f"请求核心数据失败 {stock_code}: {e}")
             except Exception as e:
                 print(f"请求核心数据失败 {stock_code}: {e}")
+
+        # Phase 2: 备用 Cookie 兜底
+        all_fallback = fallback_cookies + [SEED_COOKIE]
+        seen = set()
+        for cookie in all_fallback:
+            if not cookie or cookie in seen:
+                continue
+            seen.add(cookie)
+            print(f"尝试备用Cookie...")
+            try:
+                result = await _try_once(cookie)
+                if result is not None:
+                    self.last_used_cookie = cookie
+                    return result
+            except Exception as e:
+                print(f"备用Cookie失败: {e}")
 
         return None
 
@@ -193,6 +231,7 @@ class EastmoneyCurrentCoreDataReader:
         self,
         market: str,
         stock_code: str,
+        fallback_cookies: list = None,
     ) -> Optional[StockInfo]:
         """同步获取个股核心数据（包装异步方法）"""
-        return asyncio.run(self.fetch_stock_info_async(market, stock_code))
+        return asyncio.run(self.fetch_stock_info_async(market, stock_code, fallback_cookies))

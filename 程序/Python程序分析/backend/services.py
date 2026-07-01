@@ -10,8 +10,40 @@ from sqlalchemy.orm import Session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData
-from emdata import EastmoneyStockListReader
+from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData, StockCookie
+from emdata import EastmoneyStockListReader, SEED_COOKIE
+
+# 删除失败的 Cookie 阈值
+COOKIE_MAX_FAILS = 5
+
+
+def get_fallback_cookies(db) -> list[str]:
+    """从 DB 获取备用 Cookie 列表（按失败次数升序）"""
+    rows = db.query(StockCookie).filter(StockCookie.fail_count < COOKIE_MAX_FAILS).order_by(StockCookie.fail_count).limit(10).all()
+    cookies = [r.cookie for r in rows]
+    if not cookies:
+        cookies = [SEED_COOKIE]
+    return cookies
+
+
+def save_working_cookie(db, cookie: str):
+    """保存验证成功的 Cookie（幂等）"""
+    existing = db.query(StockCookie).filter(StockCookie.cookie == cookie).first()
+    if existing:
+        existing.fail_count = 0
+    else:
+        db.add(StockCookie(cookie=cookie, fail_count=0))
+    db.commit()
+
+
+def mark_cookie_failed(db, cookie: str):
+    """标记 Cookie 失败，达阈值则删除"""
+    row = db.query(StockCookie).filter(StockCookie.cookie == cookie).first()
+    if row:
+        row.fail_count += 1
+        if row.fail_count >= COOKIE_MAX_FAILS:
+            db.delete(row)
+        db.commit()
 
 
 def get_available_stocks(db: Session) -> list[dict]:
@@ -245,18 +277,30 @@ def get_stock_dividends(
 
 
 def _stock_info_to_dict(info) -> dict:
-    """StockInfo dataclass → dict，只保留需要的字段"""
+    """StockInfo dataclass → dict"""
     return {
         "stock_code": info.stock_code,
         "market": info.market,
         "stock_name": info.stock_name,
+        "total_market_cap": info.total_market_cap,
+        "float_market_cap": info.float_market_cap,
+        "eps": info.eps,
+        "pe_dynamic": info.pe_dynamic,
+        "navps": info.navps,
+        "pb": info.pb,
+        "revenue": info.revenue,
+        "revenue_yoy": info.revenue_yoy,
+        "net_profit": info.net_profit,
+        "profit_yoy": info.profit_yoy,
         "gross_margin": info.gross_margin,
         "net_margin": info.net_margin,
         "roe": info.roe,
         "debt_ratio": info.debt_ratio,
-        "pb": info.pb,
+        "total_shares": info.total_shares,
+        "float_shares": info.float_shares,
+        "retained_eps": info.retained_eps,
+        "list_date": str(info.list_date) if info.list_date else None,
         "change_pct": info.change_pct,
-        "list_date": info.list_date,
     }
 
 
@@ -265,17 +309,33 @@ def get_stock_core_data(db: Session, stock_code: str) -> Optional[dict]:
     row = db.query(StockCoreData).filter(StockCoreData.stock_code == stock_code).first()
     if not row:
         return None
+
+    def _f(val):
+        return float(val) if val else None
+
     return {
         "stock_code": row.stock_code,
         "market": row.market,
         "stock_name": row.stock_name,
-        "gross_margin": float(row.gross_margin) if row.gross_margin else None,
-        "net_margin": float(row.net_margin) if row.net_margin else None,
-        "roe": float(row.roe) if row.roe else None,
-        "debt_ratio": float(row.debt_ratio) if row.debt_ratio else None,
-        "pb": float(row.pb) if row.pb else None,
-        "change_pct": float(row.change_pct) if row.change_pct else None,
+        "total_market_cap": _f(row.total_market_cap),
+        "float_market_cap": _f(row.float_market_cap),
+        "eps": _f(row.eps),
+        "pe_dynamic": _f(row.pe_dynamic),
+        "navps": _f(row.navps),
+        "pb": _f(row.pb),
+        "revenue": _f(row.revenue),
+        "revenue_yoy": _f(row.revenue_yoy),
+        "net_profit": _f(row.net_profit),
+        "profit_yoy": _f(row.profit_yoy),
+        "gross_margin": _f(row.gross_margin),
+        "net_margin": _f(row.net_margin),
+        "roe": _f(row.roe),
+        "debt_ratio": _f(row.debt_ratio),
+        "total_shares": _f(row.total_shares),
+        "float_shares": _f(row.float_shares),
+        "retained_eps": _f(row.retained_eps),
         "list_date": row.list_date,
+        "change_pct": _f(row.change_pct),
     }
 
 
@@ -287,10 +347,11 @@ def sync_stock_core_data(db: Session, stock_code: str) -> dict:
     from emdata import EastmoneyCurrentCoreDataReader, Market
 
     market = Market.SHANGHAI if stock_code.startswith("6") else Market.SHENGZHEN
+    fallback_cookies = get_fallback_cookies(db)
 
+    reader = EastmoneyCurrentCoreDataReader()
     async def _fetch():
-        reader = EastmoneyCurrentCoreDataReader()
-        return await reader.fetch_stock_info_async(market, stock_code)
+        return await reader.fetch_stock_info_async(market, stock_code, fallback_cookies)
 
     try:
         info = asyncio.run(_fetch())
@@ -300,20 +361,18 @@ def sync_stock_core_data(db: Session, stock_code: str) -> dict:
     if info is None:
         return {"status": "error", "message": "获取核心数据为空", "data": None}
 
+    # 保存成功的 Cookie 到 DB
+    if reader.last_used_cookie:
+        save_working_cookie(db, reader.last_used_cookie)
+
     data = _stock_info_to_dict(info)
 
     # 写入或更新数据库
     existing = db.query(StockCoreData).filter(StockCoreData.stock_code == stock_code).first()
     if existing:
-        existing.stock_name = data["stock_name"]
-        existing.market = data["market"]
-        existing.gross_margin = data["gross_margin"]
-        existing.net_margin = data["net_margin"]
-        existing.roe = data["roe"]
-        existing.debt_ratio = data["debt_ratio"]
-        existing.pb = data["pb"]
-        existing.change_pct = data["change_pct"]
-        existing.list_date = data["list_date"]
+        for key, val in data.items():
+            if key != "stock_code":
+                setattr(existing, key, val)
     else:
         db.add(StockCoreData(**data))
 
