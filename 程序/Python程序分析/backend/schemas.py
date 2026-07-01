@@ -105,3 +105,25 @@ class StockFetchOut(BaseModel):
     status: str  # ok / no_new_data / partial_error / error
     total_rows: int
     details: list[str] = []
+
+
+# ---- 个股核心数据 ----
+class StockCoreDataOut(BaseModel):
+    """个股核心数据（PE、PB、ROE、毛利率等）"""
+    stock_code: str
+    market: str
+    stock_name: Optional[str] = None
+    gross_margin: Optional[float] = None
+    net_margin: Optional[float] = None
+    roe: Optional[float] = None
+    debt_ratio: Optional[float] = None
+    pb: Optional[float] = None
+    change_pct: Optional[float] = None
+    list_date: Optional[str] = None
+
+
+class StockCoreDataSyncOut(BaseModel):
+    """核心数据同步结果"""
+    status: str
+    message: str
+    data: Optional[StockCoreDataOut] = None

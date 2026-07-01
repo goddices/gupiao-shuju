@@ -63,3 +63,24 @@ class StockDividendEvent(Base):
     bonus_per_10 = Column(Numeric(12, 6), default=0)
     conversion_per_10 = Column(Numeric(12, 6), default=0)
     created_at = Column(TIMESTAMP, server_default=None)
+
+
+class StockCoreData(Base):
+    """个股核心数据（PE、PB、ROE、毛利率等）"""
+    __tablename__ = "stock_core_data"
+    __table_args__ = (
+        UniqueConstraint("stock_code", name="uq_stock_core_code"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stock_code = Column(String(20), nullable=False, unique=True, index=True)
+    stock_name = Column(String(100))
+    market = Column(String(10))
+    gross_margin = Column(Numeric(12, 4))
+    net_margin = Column(Numeric(12, 4))
+    roe = Column(Numeric(12, 4))
+    debt_ratio = Column(Numeric(12, 4))
+    pb = Column(Numeric(12, 4))
+    change_pct = Column(Numeric(12, 4))
+    list_date = Column(String(20))
+    updated_at = Column(TIMESTAMP, server_default=None)

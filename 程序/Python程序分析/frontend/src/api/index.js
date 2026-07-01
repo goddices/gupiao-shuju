@@ -35,6 +35,16 @@ export function syncStockList() {
   return api.post('/stocks/sync')
 }
 
+// 获取个股核心数据（从数据库读取）
+export function getStockCoreData(code) {
+  return api.get(`/stocks/${code}/core-data`)
+}
+
+// 同步个股核心数据（从东方财富拉取并保存）
+export function syncStockCoreData(code) {
+  return api.post(`/stocks/${code}/fetch-core-data`)
+}
+
 // 同步单只股票行情（不复权+前复权+后复权）
 export function fetchStockQuotes(code) {
   return api.post(`/stocks/${code}/fetch`)

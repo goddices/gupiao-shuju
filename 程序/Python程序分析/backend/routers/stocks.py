@@ -14,6 +14,8 @@ from schemas import (
     StockInfoSyncOut,
     StockFetchOut,
     DividendEventOut,
+    StockCoreDataOut,
+    StockCoreDataSyncOut,
 )
 from services import (
     get_available_stocks,
@@ -22,6 +24,8 @@ from services import (
     get_stock_stats,
     get_stock_dividends,
     sync_stock_list,
+    get_stock_core_data,
+    sync_stock_core_data,
 )
 from data_fetcher import fetch_stock_data_full
 
@@ -74,6 +78,24 @@ def stock_quotes(
     return get_stock_quotes(
         db, stock_code, adjust_type, start_date, end_date, page, page_size
     )
+
+
+@router.get("/{stock_code}/core-data", response_model=StockCoreDataOut)
+def stock_core_data(stock_code: str, db: Session = Depends(get_db)):
+    """从数据库获取个股核心数据"""
+    result = get_stock_core_data(db, stock_code)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"股票 {stock_code} 暂无核心数据，请先同步")
+    return result
+
+
+@router.post("/{stock_code}/fetch-core-data", response_model=StockCoreDataSyncOut)
+def fetch_stock_core(stock_code: str, db: Session = Depends(get_db)):
+    """从东方财富同步个股核心数据并保存到数据库"""
+    result = sync_stock_core_data(db, stock_code)
+    if result["status"] == "error":
+        raise HTTPException(status_code=500, detail=result["message"])
+    return result
 
 
 @router.get("/{stock_code}/stats", response_model=StockStatsOut)

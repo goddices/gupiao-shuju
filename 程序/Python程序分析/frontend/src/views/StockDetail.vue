@@ -24,6 +24,43 @@
       </a-col>
     </a-row>
 
+    <!-- 核心数据展示 -->
+    <a-card
+      v-if="coreData"
+      title="核心数据"
+      style="margin-bottom: 16px"
+    >
+      <a-row :gutter="[16, 12]">
+        <a-col :span="6" v-if="coreData.stock_name">
+          <a-statistic title="股票名称" :value="coreData.stock_name" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.pe_dynamic_raw != null">
+          <a-statistic title="PE（动态）" :value="coreData.pe_dynamic_raw" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.pb != null">
+          <a-statistic title="市净率（PB）" :value="coreData.pb" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.roe != null">
+          <a-statistic title="ROE（%）" :value="coreData.roe" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.gross_margin != null">
+          <a-statistic title="毛利率（%）" :value="coreData.gross_margin" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.net_margin != null">
+          <a-statistic title="净利率（%）" :value="coreData.net_margin" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.debt_ratio != null">
+          <a-statistic title="资产负债率（%）" :value="coreData.debt_ratio" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.change_pct != null">
+          <a-statistic title="涨跌幅（%）" :value="coreData.change_pct" :precision="2" />
+        </a-col>
+        <a-col :span="6" v-if="coreData.list_date">
+          <a-statistic title="上市日期" :value="coreData.list_date" />
+        </a-col>
+      </a-row>
+    </a-card>
+
     <!-- 工具栏 -->
     <a-space style="margin-bottom: 16px">
       <a-button
@@ -32,6 +69,12 @@
         @click="syncQuotes"
       >
         同步行情
+      </a-button>
+      <a-button
+        :loading="syncingCore"
+        @click="syncCoreData"
+      >
+        同步基础数据
       </a-button>
       <span>复权类型：</span>
       <a-radio-group v-model:value="adjustType" @change="fetchQuotes">
@@ -89,7 +132,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
-import { getStockQuotes, getStockStats, fetchStockQuotes } from '../api'
+import { getStockQuotes, getStockStats, fetchStockQuotes, getStockCoreData, syncStockCoreData } from '../api'
 import KLineChart from '../components/KLineChart.vue'
 
 const route = useRoute()
@@ -97,7 +140,9 @@ const stockCode = computed(() => route.params.code)
 
 const loading = ref(false)
 const syncing = ref(false)
+const syncingCore = ref(false)
 const syncResult = ref(null)
+const coreData = ref(null)
 const quotes = ref([])
 const stats = ref({})
 const stockName = ref('')
@@ -177,6 +222,45 @@ async function syncQuotes() {
   }
 }
 
+async function loadCoreData() {
+  // 页面打开时从数据库加载核心数据（如果存在）
+  try {
+    const { data } = await getStockCoreData(stockCode.value)
+    coreData.value = data
+  } catch {
+    coreData.value = null
+  }
+}
+
+async function syncCoreData() {
+  syncingCore.value = true
+  try {
+    const { data: syncResultData } = await syncStockCoreData(stockCode.value)
+    if (syncResultData.status === 'ok' && syncResultData.data) {
+      coreData.value = syncResultData.data
+      syncResult.value = {
+        type: 'success',
+        title: '核心数据同步成功',
+        description: `${syncResultData.data.stock_name || stockCode.value} — ROE: ${syncResultData.data.roe ?? '-'}%, PB: ${syncResultData.data.pb ?? '-'}, 毛利率: ${syncResultData.data.gross_margin ?? '-'}%`,
+      }
+    } else {
+      syncResult.value = {
+        type: 'warning',
+        title: '同步结果',
+        description: syncResultData.message,
+      }
+    }
+  } catch (e) {
+    syncResult.value = {
+      type: 'error',
+      title: '核心数据同步失败',
+      description: e.response?.data?.detail || e.message,
+    }
+  } finally {
+    syncingCore.value = false
+  }
+}
+
 async function refreshStats() {
   try {
     const { data } = await getStockStats(stockCode.value)
@@ -216,5 +300,6 @@ function onTableChange(pag) {
 onMounted(async () => {
   await refreshStats()
   fetchQuotes()
+  loadCoreData()
 })
 </script>

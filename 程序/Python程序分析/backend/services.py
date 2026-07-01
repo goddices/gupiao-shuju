@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import StockDailyQuote, StockDividendEvent, StockInfo
+from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData
 from eastmoney_quote_reader import EastmoneyStockListReader
 
 
@@ -242,6 +242,84 @@ def get_stock_dividends(
         "page_size": page_size,
         "data": [_to_dividend_dict(r) for r in rows],
     }
+
+
+def _stock_info_to_dict(info) -> dict:
+    """StockInfo dataclass → dict，只保留需要的字段"""
+    return {
+        "stock_code": info.stock_code,
+        "market": info.market,
+        "stock_name": info.stock_name,
+        "gross_margin": info.gross_margin,
+        "net_margin": info.net_margin,
+        "roe": info.roe,
+        "debt_ratio": info.debt_ratio,
+        "pb": info.pb,
+        "change_pct": info.change_pct,
+        "list_date": info.list_date,
+    }
+
+
+def get_stock_core_data(db: Session, stock_code: str) -> Optional[dict]:
+    """从数据库获取个股核心数据"""
+    row = db.query(StockCoreData).filter(StockCoreData.stock_code == stock_code).first()
+    if not row:
+        return None
+    return {
+        "stock_code": row.stock_code,
+        "market": row.market,
+        "stock_name": row.stock_name,
+        "gross_margin": float(row.gross_margin) if row.gross_margin else None,
+        "net_margin": float(row.net_margin) if row.net_margin else None,
+        "roe": float(row.roe) if row.roe else None,
+        "debt_ratio": float(row.debt_ratio) if row.debt_ratio else None,
+        "pb": float(row.pb) if row.pb else None,
+        "change_pct": float(row.change_pct) if row.change_pct else None,
+        "list_date": row.list_date,
+    }
+
+
+def sync_stock_core_data(db: Session, stock_code: str) -> dict:
+    """
+    从东方财富获取个股核心数据并保存到数据库
+    :return: {"status": str, "message": str, "data": dict|None}
+    """
+    from eastmoney_quote_reader import EastmoneyCurrentCoreDataReader, Market
+
+    market = Market.SHANGHAI if stock_code.startswith("6") else Market.SHENGZHEN
+
+    async def _fetch():
+        reader = EastmoneyCurrentCoreDataReader()
+        return await reader.fetch_stock_info_async(market, stock_code)
+
+    try:
+        info = asyncio.run(_fetch())
+    except Exception as e:
+        return {"status": "error", "message": f"网络请求失败: {str(e)}", "data": None}
+
+    if info is None:
+        return {"status": "error", "message": "获取核心数据为空", "data": None}
+
+    data = _stock_info_to_dict(info)
+
+    # 写入或更新数据库
+    existing = db.query(StockCoreData).filter(StockCoreData.stock_code == stock_code).first()
+    if existing:
+        existing.stock_name = data["stock_name"]
+        existing.market = data["market"]
+        existing.gross_margin = data["gross_margin"]
+        existing.net_margin = data["net_margin"]
+        existing.roe = data["roe"]
+        existing.debt_ratio = data["debt_ratio"]
+        existing.pb = data["pb"]
+        existing.change_pct = data["change_pct"]
+        existing.list_date = data["list_date"]
+    else:
+        db.add(StockCoreData(**data))
+
+    db.commit()
+
+    return {"status": "ok", "message": "核心数据同步成功", "data": data}
 
 
 def get_latest_trade_date(db: Session, stock_code: str) -> Optional[date]:
