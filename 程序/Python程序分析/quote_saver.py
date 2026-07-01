@@ -1,7 +1,7 @@
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
-from eastmoney_quote_reader import (
+from emdata import (
     EastmoneyQuoteReader,
     Market,
     AdjustPriceType,

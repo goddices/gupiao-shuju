@@ -12,7 +12,7 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-from eastmoney_quote_reader import (
+from emdata import (
     AdjustPriceType,
     EastmoneyQuoteReader,
     Market,

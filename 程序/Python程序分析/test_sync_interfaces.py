@@ -1,6 +1,6 @@
 """
 对数据同步接口的单元测试
-覆盖: eastmoney_quote_reader, quote_saver, data_fetcher, services, divide_importer
+覆盖: emdata, quote_saver, data_fetcher, services, divide_importer
 """
 import sys
 import os
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "bac
 # =============================================================================
 # 导入被测试模块
 # =============================================================================
-from eastmoney_quote_reader import (
+from emdata import (
     Market, AdjustPriceType, PeriodType,
     StockQuoteLine, StockQuote,
     QuoteMappers,
@@ -335,8 +335,8 @@ class TestQuoteReaderRetry:
         mock_resp = self._make_response(wrapped_json)
         mock_session = self._make_session(mock_resp)
 
-        with patch("eastmoney_quote_reader.random.randint", side_effect=[123456789, 7654321]):
-            with patch("eastmoney_quote_reader.aiohttp.ClientSession", return_value=mock_session):
+        with patch("emdata.quote_reader.random.randint", side_effect=[123456789, 7654321]):
+            with patch("emdata.quote_reader.aiohttp.ClientSession", return_value=mock_session):
                 result = await reader.read_quote_async(
                     market=Market.SHANGHAI,
                     stock_code="000001",
@@ -366,13 +366,13 @@ class TestQuoteReaderRetry:
         randint_values = [987654321, 1234567] + [500000000] * 200
 
         with patch(
-            "eastmoney_quote_reader.random.randint",
+            "emdata.quote_reader.random.randint",
             side_effect=randint_values,
         ), patch(
-            "eastmoney_quote_reader.aiohttp.ClientSession",
+            "emdata.quote_reader.aiohttp.ClientSession",
             side_effect=[mock_session1, mock_session2],
         ) as mock_cs, patch(
-            "eastmoney_quote_reader.asyncio.sleep", new_callable=AsyncMock
+            "emdata.quote_reader.asyncio.sleep", new_callable=AsyncMock
         ) as mock_sleep:
             result = await reader.read_quote_async(
                 market=Market.SHANGHAI,
@@ -394,10 +394,10 @@ class TestQuoteReaderRetry:
         mock_session = self._make_session(ClientError("Server disconnected"))
 
         with patch(
-            "eastmoney_quote_reader.aiohttp.ClientSession",
+            "emdata.quote_reader.aiohttp.ClientSession",
             return_value=mock_session,
         ), patch(
-            "eastmoney_quote_reader.asyncio.sleep", new_callable=AsyncMock
+            "emdata.quote_reader.asyncio.sleep", new_callable=AsyncMock
         ):
             result = await reader.read_quote_async(
                 market=Market.SHANGHAI,
@@ -421,10 +421,10 @@ class TestQuoteReaderRetry:
         mock_session2 = self._make_session(mock_resp2)
 
         with patch(
-            "eastmoney_quote_reader.aiohttp.ClientSession",
+            "emdata.quote_reader.aiohttp.ClientSession",
             side_effect=[mock_session1, mock_session2],
         ), patch(
-            "eastmoney_quote_reader.asyncio.sleep", new_callable=AsyncMock
+            "emdata.quote_reader.asyncio.sleep", new_callable=AsyncMock
         ):
             await reader.read_quote_async(
                 market=Market.SHANGHAI,
@@ -443,9 +443,9 @@ class TestQuoteReaderRetry:
         mock_session = self._make_session(ValueError("some other error"))
 
         with patch(
-            "eastmoney_quote_reader.aiohttp.ClientSession", return_value=mock_session
+            "emdata.quote_reader.aiohttp.ClientSession", return_value=mock_session
         ), patch(
-            "eastmoney_quote_reader.asyncio.sleep", new_callable=AsyncMock
+            "emdata.quote_reader.asyncio.sleep", new_callable=AsyncMock
         ) as mock_sleep:
             result = await reader.read_quote_async(
                 market=Market.SHANGHAI,
@@ -465,8 +465,8 @@ class TestQuoteReaderRetry:
         mock_session = self._make_session(mock_resp)
 
         with patch(
-            "eastmoney_quote_reader.aiohttp.ClientSession", return_value=mock_session
-        ), patch("eastmoney_quote_reader.random.random", return_value=0.2):  # < 1/3, 不带Cookie
+            "emdata.quote_reader.aiohttp.ClientSession", return_value=mock_session
+        ), patch("emdata.quote_reader.random.random", return_value=0.2):  # < 1/3, 不带Cookie
             await reader.read_quote_async(
                 market=Market.SHANGHAI,
                 stock_code="000001",
@@ -562,7 +562,7 @@ class TestStockListReaderRetry:
             mock_resp,
         ])
 
-        with patch("eastmoney_quote_reader.asyncio.sleep", new_callable=AsyncMock):
+        with patch("emdata.stock_list_reader.asyncio.sleep", new_callable=AsyncMock):
             result = await list_reader.fetch_page(mock_session, "m:0+t:6", page=1)
 
         assert result is not None

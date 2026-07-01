@@ -8,7 +8,7 @@ warnings.filterwarnings('ignore')
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from datetime import datetime
-from eastmoney_quote_reader import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
+from emdata import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
 from result_saver import get_saver, reset_saver
 
 class RegressionKLineAnalyzer:

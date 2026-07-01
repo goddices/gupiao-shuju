@@ -6,7 +6,7 @@ import asyncio
 import warnings
 warnings.filterwarnings('ignore')
 from datetime import datetime
-from eastmoney_quote_reader import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
+from emdata import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
 from result_saver import get_saver, reset_saver
 
 class BasicKLineAnalyzer:

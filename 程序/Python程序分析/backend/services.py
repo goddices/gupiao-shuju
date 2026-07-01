@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData
-from eastmoney_quote_reader import EastmoneyStockListReader
+from emdata import EastmoneyStockListReader
 
 
 def get_available_stocks(db: Session) -> list[dict]:
@@ -284,7 +284,7 @@ def sync_stock_core_data(db: Session, stock_code: str) -> dict:
     从东方财富获取个股核心数据并保存到数据库
     :return: {"status": str, "message": str, "data": dict|None}
     """
-    from eastmoney_quote_reader import EastmoneyCurrentCoreDataReader, Market
+    from emdata import EastmoneyCurrentCoreDataReader, Market
 
     market = Market.SHANGHAI if stock_code.startswith("6") else Market.SHENGZHEN
 

@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 from datetime import datetime
-from eastmoney_quote_reader import (
+from emdata import (
     EastmoneyQuoteReader,
     Market,
     AdjustPriceType,

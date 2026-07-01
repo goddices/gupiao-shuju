@@ -13,13 +13,13 @@ from sqlalchemy import text as sa_text
 # 将父目录加入 sys.path 以导入现有模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from eastmoney_quote_reader import (
+from emdata import (
     EastmoneyQuoteReader,
     Market,
     AdjustPriceType,
     PeriodType,
 )
-from models import StockDailyQuote
+from models import StockDailyQuote, StockCoreData
 
 
 def _guess_market(stock_code: str) -> str:
@@ -105,6 +105,12 @@ def fetch_stock_data_full(
     market = _guess_market(stock_code)
     if end_date is None:
         end_date = date.today().strftime("%Y%m%d")
+
+    # 0. 尝试从核心数据获取上市日期作为起始日期
+    if start_date == "2006-01-01":
+        core = db.query(StockCoreData).filter(StockCoreData.stock_code == stock_code).first()
+        if core and core.list_date:
+            start_date = core.list_date
 
     # 1. 并行拉取三种复权
     try:
