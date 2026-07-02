@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData, StockCookie
+from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData, StockCookie, StockWeekdayStats
 from emdata import EastmoneyStockListReader, SEED_COOKIE
 
 # 删除失败的 Cookie 阈值
@@ -390,6 +390,217 @@ def get_latest_trade_date(db: Session, stock_code: str) -> Optional[date]:
         .first()
     )
     return row.trade_date if row else None
+
+
+# ---- 星期涨跌分析 ----
+WEEKDAY_NAMES = ["星期一", "星期二", "星期三", "星期四", "星期五"]
+WEEKDAY_EN_TO_CN = {
+    "Monday": "星期一", "Tuesday": "星期二", "Wednesday": "星期三",
+    "Thursday": "星期四", "Friday": "星期五",
+    "Saturday": "星期六", "Sunday": "星期日",
+}
+
+
+def compute_weekday_stats(db: Session, stock_code: str) -> dict:
+    """
+    从 stock_daily_quote 计算星期涨跌分布，结果存入 stock_weekday_stats 表。
+    返回 {"status": str, "message": str}
+    """
+    # 查询该股票的所有日线数据，按日期排序
+    rows = (
+        db.query(StockDailyQuote)
+        .filter(StockDailyQuote.stock_code == stock_code)
+        .order_by(StockDailyQuote.trade_date.asc())
+        .all()
+    )
+
+    if not rows:
+        return {"status": "error", "message": f"股票 {stock_code} 无行情数据"}
+
+    # 用 Python 计算（因为需要 weekday 判断，MySQL 的 DAYOFWEEK 和 Python 的 weekday 不完全对齐）
+    from collections import defaultdict
+    weekday_data = defaultdict(list)
+
+    for i in range(1, len(rows)):
+        prev_close = float(rows[i - 1].close_price)
+        curr_close = float(rows[i].close_price)
+        if prev_close == 0:
+            continue
+        change_pct = (curr_close - prev_close) / prev_close * 100
+        en_name = rows[i].trade_date.strftime("%A")
+        cn_name = WEEKDAY_EN_TO_CN.get(en_name)
+        if cn_name and cn_name in WEEKDAY_NAMES:
+            weekday_data[cn_name].append(change_pct)
+
+    # 计算统计并写入数据库
+    import statistics
+    saved = 0
+    for wd in WEEKDAY_NAMES:
+        changes = weekday_data.get(wd, [])
+        total = len(changes)
+        if total == 0:
+            up = down = flat = 0
+            up_pct = down_pct = mean_val = 0.0
+            median_val = std_val = max_gain = max_loss = None
+        else:
+            up = sum(1 for c in changes if c > 0)
+            down = sum(1 for c in changes if c < 0)
+            flat = sum(1 for c in changes if c == 0)
+            up_pct = round(up / total * 100, 4)
+            down_pct = round(down / total * 100, 4)
+            mean_val = round(sum(changes) / total, 6)
+            median_val = round(statistics.median(changes), 6) if total >= 2 else round(changes[0], 6)
+            std_val = round(statistics.stdev(changes), 6) if total >= 2 else 0.0
+            max_gain = round(max(changes), 6)
+            max_loss = round(min(changes), 6)
+
+        # Upsert
+        existing = (
+            db.query(StockWeekdayStats)
+            .filter(StockWeekdayStats.stock_code == stock_code, StockWeekdayStats.weekday == wd)
+            .first()
+        )
+        if existing:
+            existing.total_count = total
+            existing.up_count = up
+            existing.down_count = down
+            existing.flat_count = flat
+            existing.up_pct = up_pct
+            existing.down_pct = down_pct
+            existing.mean_change = mean_val
+            existing.median_change = median_val
+            existing.std_change = std_val
+            existing.max_gain = max_gain
+            existing.max_loss = max_loss
+        else:
+            db.add(StockWeekdayStats(
+                stock_code=stock_code,
+                weekday=wd,
+                total_count=total,
+                up_count=up,
+                down_count=down,
+                flat_count=flat,
+                up_pct=up_pct,
+                down_pct=down_pct,
+                mean_change=mean_val,
+                median_change=median_val,
+                std_change=std_val,
+                max_gain=max_gain,
+                max_loss=max_loss,
+            ))
+        saved += 1
+
+    db.commit()
+    return {"status": "ok", "message": f"已计算并保存 {saved} 个星期统计"}
+
+
+def get_weekday_analysis(db: Session, stock_code: str) -> Optional[dict]:
+    """
+    获取星期涨跌分析数据（从 stock_weekday_stats 表读取），
+    并生成未来5个交易日的预测。
+    """
+    # 读取已保存的星期统计
+    stats_rows = (
+        db.query(StockWeekdayStats)
+        .filter(StockWeekdayStats.stock_code == stock_code)
+        .order_by(StockWeekdayStats.weekday)
+        .all()
+    )
+
+    if not stats_rows:
+        return None
+
+    def _to_stat_dict(r: StockWeekdayStats) -> dict:
+        return {
+            "weekday": r.weekday,
+            "total_count": r.total_count,
+            "up_count": r.up_count,
+            "down_count": r.down_count,
+            "flat_count": r.flat_count,
+            "up_pct": float(r.up_pct),
+            "down_pct": float(r.down_pct),
+            "mean_change": float(r.mean_change),
+            "median_change": float(r.median_change) if r.median_change else None,
+            "std_change": float(r.std_change) if r.std_change else None,
+            "max_gain": float(r.max_gain) if r.max_gain else None,
+            "max_loss": float(r.max_loss) if r.max_loss else None,
+        }
+
+    weekday_stats = [_to_stat_dict(r) for r in stats_rows]
+
+    # 确保 5 天都有数据
+    existing_weekdays = {s["weekday"] for s in weekday_stats}
+    for wd in WEEKDAY_NAMES:
+        if wd not in existing_weekdays:
+            weekday_stats.append({
+                "weekday": wd, "total_count": 0, "up_count": 0,
+                "down_count": 0, "flat_count": 0, "up_pct": 0.0,
+                "down_pct": 0.0, "mean_change": 0.0,
+                "median_change": None, "std_change": None,
+                "max_gain": None, "max_loss": None,
+            })
+
+    weekday_stats.sort(key=lambda s: WEEKDAY_NAMES.index(s["weekday"]))
+
+    # 计算总交易日数
+    total_trading_days = sum(s["total_count"] for s in weekday_stats)
+
+    # 日期范围
+    date_range = (
+        db.query(
+            func.min(StockDailyQuote.trade_date).label("start"),
+            func.max(StockDailyQuote.trade_date).label("end"),
+        )
+        .filter(StockDailyQuote.stock_code == stock_code)
+        .first()
+    )
+
+    # 生成未来5个交易日预测（从最新交易日的下一天开始）
+    latest_date = get_latest_trade_date(db, stock_code)
+    predictions = []
+    if latest_date:
+        from datetime import timedelta
+        current = latest_date
+        stats_map = {s["weekday"]: s for s in weekday_stats}
+        for _ in range(5):
+            current = current + timedelta(days=1)
+            while current.weekday() >= 5:  # 跳过周末
+                current = current + timedelta(days=1)
+            en_name = current.strftime("%A")
+            cn_name = WEEKDAY_EN_TO_CN.get(en_name, "")
+            ws = stats_map.get(cn_name, {})
+            predictions.append({
+                "date": current.strftime("%Y-%m-%d"),
+                "weekday": cn_name,
+                "up_probability": ws.get("up_pct", 0.0),
+                "down_probability": ws.get("down_pct", 0.0),
+                "mean_change": ws.get("mean_change", 0.0),
+                "sample_count": ws.get("total_count", 0),
+            })
+
+    # 最佳/最差星期
+    best_weekday = max(
+        [s for s in weekday_stats if s["total_count"] > 0],
+        key=lambda s: s["mean_change"], default=None
+    )
+    worst_weekday = min(
+        [s for s in weekday_stats if s["total_count"] > 0],
+        key=lambda s: s["mean_change"], default=None
+    )
+
+    stock_name = get_stock_name(db, stock_code)
+
+    return {
+        "stock_code": stock_code,
+        "stock_name": stock_name,
+        "total_trading_days": total_trading_days,
+        "date_range_start": date_range.start.strftime("%Y-%m-%d") if date_range and date_range.start else None,
+        "date_range_end": date_range.end.strftime("%Y-%m-%d") if date_range and date_range.end else None,
+        "weekday_stats": weekday_stats,
+        "predictions": predictions,
+        "best_weekday": best_weekday["weekday"] if best_weekday else None,
+        "worst_weekday": worst_weekday["weekday"] if worst_weekday else None,
+    }
 
 
 # ---- 内部辅助函数 ----

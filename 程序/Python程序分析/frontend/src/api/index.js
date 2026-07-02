@@ -58,4 +58,14 @@ export function fetchStockData(stockCodes, startDate = '2006-01-01') {
   })
 }
 
+// 星期涨跌分析
+export function getWeekdayAnalysis(code) {
+  return api.get(`/stocks/${code}/weekday-analysis`)
+}
+
+// 计算并保存星期涨跌统计
+export function computeWeekdayStats(code) {
+  return api.post(`/stocks/${code}/compute-weekday-stats`)
+}
+
 export default api

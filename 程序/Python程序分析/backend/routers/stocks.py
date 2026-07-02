@@ -16,6 +16,7 @@ from schemas import (
     DividendEventOut,
     StockCoreDataOut,
     StockCoreDataSyncOut,
+    WeekdayAnalysisResponse,
 )
 from services import (
     get_available_stocks,
@@ -26,6 +27,8 @@ from services import (
     sync_stock_list,
     get_stock_core_data,
     sync_stock_core_data,
+    compute_weekday_stats,
+    get_weekday_analysis,
 )
 from data_fetcher import fetch_stock_data_full
 
@@ -116,3 +119,21 @@ def stock_dividends(
 ):
     """获取分红事件列表"""
     return get_stock_dividends(db, stock_code, page, page_size)
+
+
+@router.post("/{stock_code}/compute-weekday-stats")
+def compute_weekday(stock_code: str, db: Session = Depends(get_db)):
+    """计算并保存个股星期涨跌统计"""
+    result = compute_weekday_stats(db, stock_code)
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
+@router.get("/{stock_code}/weekday-analysis", response_model=WeekdayAnalysisResponse)
+def weekday_analysis(stock_code: str, db: Session = Depends(get_db)):
+    """获取个股星期涨跌分析（含未来5日预测）"""
+    result = get_weekday_analysis(db, stock_code)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"股票 {stock_code} 暂无星期统计，请先调用 compute-weekday-stats")
+    return result

@@ -106,3 +106,27 @@ class StockCookie(Base):
     cookie = Column(String(4096), nullable=False)
     fail_count = Column(Integer, default=0)
     created_at = Column(TIMESTAMP, server_default=None)
+
+
+class StockWeekdayStats(Base):
+    """个股按星期几统计的涨跌分布"""
+    __tablename__ = "stock_weekday_stats"
+    __table_args__ = (
+        UniqueConstraint("stock_code", "weekday", name="uq_stock_weekday"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stock_code = Column(String(20), nullable=False, index=True)
+    weekday = Column(String(10), nullable=False, comment="星期几: 星期一~星期五")
+    total_count = Column(Integer, nullable=False, default=0, comment="该星期几的交易日总数")
+    up_count = Column(Integer, nullable=False, default=0, comment="上涨天数")
+    down_count = Column(Integer, nullable=False, default=0, comment="下跌天数")
+    flat_count = Column(Integer, nullable=False, default=0, comment="平盘天数")
+    up_pct = Column(Numeric(8, 4), nullable=False, default=0, comment="上涨概率(%)")
+    down_pct = Column(Numeric(8, 4), nullable=False, default=0, comment="下跌概率(%)")
+    mean_change = Column(Numeric(12, 6), nullable=False, default=0, comment="平均涨跌幅(%)")
+    median_change = Column(Numeric(12, 6), nullable=True, comment="中位数涨跌幅(%)")
+    std_change = Column(Numeric(12, 6), nullable=True, comment="涨跌幅标准差")
+    max_gain = Column(Numeric(12, 6), nullable=True, comment="最大涨幅(%)")
+    max_loss = Column(Numeric(12, 6), nullable=True, comment="最大跌幅(%)")
+    updated_at = Column(TIMESTAMP, server_default=None)

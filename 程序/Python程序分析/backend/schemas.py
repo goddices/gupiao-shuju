@@ -139,3 +139,45 @@ class StockCoreDataSyncOut(BaseModel):
     status: str
     message: str
     data: Optional[StockCoreDataOut] = None
+
+
+# ---- 星期涨跌分析 ----
+class WeekdayStatItem(BaseModel):
+    """单个星期几的统计数据"""
+    weekday: str
+    total_count: int
+    up_count: int
+    down_count: int
+    flat_count: int
+    up_pct: float
+    down_pct: float
+    mean_change: float
+    median_change: Optional[float] = None
+    std_change: Optional[float] = None
+    max_gain: Optional[float] = None
+    max_loss: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
+class DayPrediction(BaseModel):
+    """单个交易日的涨跌预测"""
+    date: str
+    weekday: str
+    up_probability: float
+    down_probability: float
+    mean_change: float
+    sample_count: int
+
+
+class WeekdayAnalysisResponse(BaseModel):
+    """星期涨跌分析完整响应"""
+    stock_code: str
+    stock_name: Optional[str] = None
+    total_trading_days: int
+    date_range_start: Optional[str] = None
+    date_range_end: Optional[str] = None
+    weekday_stats: list[WeekdayStatItem]
+    predictions: list[DayPrediction]
+    best_weekday: Optional[str] = None
+    worst_weekday: Optional[str] = None
