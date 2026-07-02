@@ -181,3 +181,61 @@ class WeekdayAnalysisResponse(BaseModel):
     predictions: list[DayPrediction]
     best_weekday: Optional[str] = None
     worst_weekday: Optional[str] = None
+
+
+# ---- 节日涨跌分析 ----
+class HolidayDayStat(BaseModel):
+    """单日节日前后统计"""
+    position: int  # -7~-1, 1~7
+    position_label: str  # "节前7天", "节后1天" 等
+    count: int
+    up_count: int
+    down_count: int
+    up_probability: float
+    down_probability: float
+    mean_change: float
+    median_change: float
+    max_gain: float
+    max_loss: float
+
+
+class HolidayCumulativeStat(BaseModel):
+    """累计涨跌统计"""
+    count: int
+    up_count: int
+    down_count: int
+    up_probability: float
+    mean_change: float
+    max_gain: float
+    max_loss: float
+
+
+class HolidayYearRecord(BaseModel):
+    """逐年记录"""
+    year: int
+    date: str
+    change_pct: float
+
+
+class SingleHolidayAnalysis(BaseModel):
+    """单个节日的完整分析"""
+    name: str
+    name_cn: str
+    event_count: int  # 有多少年的数据
+    year_range: str  # 如 "2008-2026"
+    daily_stats: list[HolidayDayStat]  # 前后各7天共14条
+    cumulative_before: Optional[HolidayCumulativeStat] = None
+    cumulative_after: Optional[HolidayCumulativeStat] = None
+    first_day_after: Optional[HolidayCumulativeStat] = None
+    year_records: list[HolidayYearRecord] = []  # 节后首日逐年记录
+
+
+class HolidayAnalysisResponse(BaseModel):
+    """节日涨跌分析完整响应"""
+    stock_code: str
+    stock_name: Optional[str] = None
+    date_range_start: Optional[str] = None
+    date_range_end: Optional[str] = None
+    holidays: list[str]  # 节日名称列表
+    analysis: list[SingleHolidayAnalysis]
+    summary: list[dict]  # 综合对比摘要

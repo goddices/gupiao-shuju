@@ -68,4 +68,9 @@ export function computeWeekdayStats(code) {
   return api.post(`/stocks/${code}/compute-weekday-stats`)
 }
 
+// 节日涨跌分析
+export function getHolidayAnalysis(code) {
+  return api.get('/holiday/analysis', { params: { stock_code: code } })
+}
+
 export default api

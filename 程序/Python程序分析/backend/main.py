@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from database import engine
 from models import Base
-from routers import stocks, data
+from routers import stocks, data, holiday
 
 
 @asynccontextmanager
@@ -46,6 +46,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # 注册路由
 app.include_router(stocks.router)
 app.include_router(data.router)
+app.include_router(holiday.router)
 
 
 @app.get("/api/health")

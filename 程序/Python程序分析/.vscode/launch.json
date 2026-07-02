@@ -5,14 +5,18 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      },
-      "name": "Python Debugger: Current File",
+      "name": "Python Debugger: FastAPI",
       "type": "debugpy",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
       "request": "launch",
-      "program": "${file}",
-      "console": "integratedTerminal"
-    }
+      "module": "uvicorn",
+      "args": [
+        "main:app",
+        "--reload"
+      ],
+      "jinja": true
+    } 
   ]
 }

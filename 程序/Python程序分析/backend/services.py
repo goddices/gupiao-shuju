@@ -1,9 +1,12 @@
 """股票行情数据查询服务"""
 import sys
 import os
+import json
 import asyncio
-from datetime import date, datetime
+import numpy as np
+from datetime import date, datetime, timedelta
 from typing import Optional
+from collections import defaultdict
 
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
@@ -651,4 +654,288 @@ def _to_dividend_dict(r: StockDividendEvent) -> dict:
         "cash_per_10": float(r.cash_per_10) if r.cash_per_10 else None,
         "bonus_per_10": float(r.bonus_per_10) if r.bonus_per_10 else None,
         "conversion_per_10": float(r.conversion_per_10) if r.conversion_per_10 else None,
+    }
+
+
+# ==================== 节日涨跌分析服务 ====================
+
+# 主要节日列表
+MAJOR_HOLIDAYS = ["春节", "国庆节", "劳动节", "端午节", "中秋节", "清明节", "元旦"]
+
+
+def _load_holiday_data():
+    """加载假日数据，返回 (holiday_events, non_trading_dates_set)"""
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    public_holidays = set()
+    transfer_workdays = set()
+    holiday_events_by_name = defaultdict(list)
+
+    for year in range(2008, 2027):
+        filename = os.path.join(script_dir, f"china_holidays_{year}.json")
+        if not os.path.exists(filename):
+            continue
+        with open(filename, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        for entry in data.get("dates", []):
+            d = entry["date"]
+            if entry["type"] == "public_holiday":
+                public_holidays.add(d)
+                holiday_events_by_name[(entry["name"], year)].append(d)
+            elif entry["type"] == "transfer_workday":
+                transfer_workdays.add(d)
+
+    # 构建假日事件
+    holiday_events = []
+    for (name, year), dates in holiday_events_by_name.items():
+        if name not in MAJOR_HOLIDAYS:
+            continue
+        dates_sorted = sorted(dates)
+        holiday_events.append({
+            "name": name, "year": year,
+            "start": dates_sorted[0], "end": dates_sorted[-1],
+        })
+    holiday_events.sort(key=lambda x: (x["year"], MAJOR_HOLIDAYS.index(x["name"])))
+
+    # 构建非交易日集合
+    non_trading = set()
+    start = date(2008, 1, 1)
+    end = date(2026, 12, 31)
+    current = start
+    while current <= end:
+        d_str = current.strftime("%Y-%m-%d")
+        is_weekend = current.weekday() >= 5
+        is_holiday = d_str in public_holidays
+        is_workday_transfer = d_str in transfer_workdays
+        if (is_weekend or is_holiday) and not is_workday_transfer:
+            non_trading.add(d_str)
+        current += timedelta(days=1)
+
+    return holiday_events, non_trading
+
+
+def get_holiday_analysis(db: Session, stock_code: str) -> dict:
+    """获取节日涨跌分析"""
+    holiday_events, non_trading = _load_holiday_data()
+
+    # 从数据库获取交易日和收盘价
+    rows = (
+        db.query(StockDailyQuote.trade_date, StockDailyQuote.close_price)
+        .filter(StockDailyQuote.stock_code == stock_code)
+        .order_by(StockDailyQuote.trade_date)
+        .all()
+    )
+
+    if not rows:
+        return {"error": f"股票 {stock_code} 没有行情数据"}
+
+    trading_dates_set = {r.trade_date.strftime("%Y-%m-%d") for r in rows}
+    # 构建日期 -> 收盘价的映射
+    date_price_map = {}
+    for r in rows:
+        date_price_map[r.trade_date.strftime("%Y-%m-%d")] = float(r.close_price)
+
+    # 按日期排序的交易日列表
+    trading_dates_sorted = sorted(trading_dates_set)
+
+    # 辅助函数：找交易日
+    def find_trading_days(target_str, direction, count):
+        """从target_str开始，向前或向后找count个交易日"""
+        result = []
+        target = datetime.strptime(target_str, "%Y-%m-%d")
+        current = target - timedelta(days=1) if direction == "before" else target + timedelta(days=1)
+        iterations = 0
+        while len(result) < count and iterations < 60:
+            d_str = current.strftime("%Y-%m-%d")
+            if d_str in trading_dates_set:
+                result.append(d_str)
+            current = current - timedelta(days=1) if direction == "before" else current + timedelta(days=1)
+            iterations += 1
+        return result
+
+    def find_last_trading_before(date_str):
+        days = find_trading_days(date_str, "before", 1)
+        return days[0] if days else None
+
+    def find_first_trading_after(date_str):
+        days = find_trading_days(date_str, "after", 1)
+        return days[0] if days else None
+
+    def get_daily_change(d_str):
+        """计算某日涨跌幅（相对于前一交易日）"""
+        if d_str not in date_price_map:
+            return None
+        # 找前一个交易日
+        prev = None
+        for td in reversed(trading_dates_sorted):
+            if td < d_str:
+                prev = td
+                break
+        if prev and prev in date_price_map:
+            return (date_price_map[d_str] - date_price_map[prev]) / date_price_map[prev] * 100
+        return None
+
+    # 按节日名收集数据
+    raw_data = defaultdict(lambda: defaultdict(list))
+    lookback, lookforward = 7, 7
+
+    for event in holiday_events:
+        name = event["name"]
+        holiday_start = event["start"]
+        holiday_end = event["end"]
+
+        last_before = find_last_trading_before(holiday_start)
+        first_after = find_first_trading_after(holiday_end)
+        if last_before is None or first_after is None:
+            continue
+
+        # 节前N个交易日
+        pre_dates = find_trading_days(holiday_start, "before", lookback)
+        pre_dates = list(reversed(pre_dates))
+        for i, d in enumerate(pre_dates):
+            pos = -(lookback - i)
+            chg = get_daily_change(d)
+            if chg is not None:
+                raw_data[name][f"day_{pos}"].append({
+                    "year": event["year"], "date": d, "change_pct": round(chg, 4)
+                })
+
+        # 节后N个交易日
+        post_dates = find_trading_days(holiday_end, "after", lookforward)
+        for i, d in enumerate(post_dates):
+            pos = i + 1
+            chg = get_daily_change(d)
+            if chg is not None:
+                raw_data[name][f"day_{pos}"].append({
+                    "year": event["year"], "date": d, "change_pct": round(chg, 4)
+                })
+
+        # 累计涨跌幅
+        pre_changes = [get_daily_change(d) for d in pre_dates if get_daily_change(d) is not None]
+        if pre_changes:
+            cum = np.prod([1 + c / 100 for c in pre_changes]) - 1
+            raw_data[name]["cumulative_before"].append({"year": event["year"], "change_pct": round(cum * 100, 4)})
+
+        post_changes = [get_daily_change(d) for d in post_dates if get_daily_change(d) is not None]
+        if post_changes:
+            cum = np.prod([1 + c / 100 for c in post_changes]) - 1
+            raw_data[name]["cumulative_after"].append({"year": event["year"], "change_pct": round(cum * 100, 4)})
+
+        if post_changes:
+            raw_data[name]["first_day_after"].append({"year": event["year"], "change_pct": post_changes[0]})
+
+    # 汇总统计
+    analysis_list = []
+    summary_list = []
+
+    for name in MAJOR_HOLIDAYS:
+        if name not in raw_data:
+            continue
+
+        daily_stats = []
+        for day in range(-lookback, 0):
+            key = f"day_{day}"
+            if key in raw_data[name]:
+                changes = [r["change_pct"] for r in raw_data[name][key]]
+                daily_stats.append(_build_holiday_stat(abs(day), f"节前{abs(day)}天", changes))
+
+        for day in range(1, lookforward + 1):
+            key = f"day_{day}"
+            if key in raw_data[name]:
+                changes = [r["change_pct"] for r in raw_data[name][key]]
+                daily_stats.append(_build_holiday_stat(day, f"节后{day}天", changes))
+
+        cb = None
+        if "cumulative_before" in raw_data[name]:
+            cb_changes = [r["change_pct"] for r in raw_data[name]["cumulative_before"]]
+            cb = _build_cumulative_stat(cb_changes)
+
+        ca = None
+        if "cumulative_after" in raw_data[name]:
+            ca_changes = [r["change_pct"] for r in raw_data[name]["cumulative_after"]]
+            ca = _build_cumulative_stat(ca_changes)
+
+        fd = None
+        if "first_day_after" in raw_data[name]:
+            fd_changes = [r["change_pct"] for r in raw_data[name]["first_day_after"]]
+            fd = _build_cumulative_stat(fd_changes)
+
+        year_records = []
+        if "first_day_after" in raw_data[name]:
+            for r in raw_data[name]["first_day_after"]:
+                year_records.append({
+                    "year": r["year"], "date": r.get("date", ""),
+                    "change_pct": r["change_pct"]
+                })
+        year_records.sort(key=lambda x: x["year"])
+
+        years_set = sorted(set(r["year"] for r in raw_data[name].get("first_day_after", [])))
+        year_range = f"{years_set[0]}-{years_set[-1]}" if years_set else ""
+
+        analysis_list.append({
+            "name": name, "name_cn": name,
+            "event_count": len(years_set),
+            "year_range": year_range,
+            "daily_stats": daily_stats,
+            "cumulative_before": cb,
+            "cumulative_after": ca,
+            "first_day_after": fd,
+            "year_records": year_records,
+        })
+
+        summary_list.append({
+            "name": name,
+            "event_count": len(years_set),
+            "first_day_up_probability": fd["up_probability"] if fd else 0,
+            "first_day_mean_change": fd["mean_change"] if fd else 0,
+            "cumulative_before_mean": cb["mean_change"] if cb else 0,
+            "cumulative_after_mean": ca["mean_change"] if ca else 0,
+        })
+
+    date_range_start = trading_dates_sorted[0] if trading_dates_sorted else None
+    date_range_end = trading_dates_sorted[-1] if trading_dates_sorted else None
+
+    return {
+        "stock_code": stock_code,
+        "stock_name": None,  # 调用方可补充
+        "date_range_start": date_range_start,
+        "date_range_end": date_range_end,
+        "holidays": [h for h in MAJOR_HOLIDAYS if h in raw_data],
+        "analysis": analysis_list,
+        "summary": summary_list,
+    }
+
+
+def _build_holiday_stat(pos: int, label: str, changes: list) -> dict:
+    """构建单日统计"""
+    up = sum(1 for c in changes if c > 0)
+    down = sum(1 for c in changes if c < 0)
+    total = len(changes)
+    return {
+        "position": pos,
+        "position_label": label,
+        "count": total,
+        "up_count": up,
+        "down_count": down,
+        "up_probability": round(up / total * 100, 2) if total > 0 else 0,
+        "down_probability": round(down / total * 100, 2) if total > 0 else 0,
+        "mean_change": round(float(np.mean(changes)), 4) if total > 0 else 0,
+        "median_change": round(float(np.median(changes)), 4) if total > 0 else 0,
+        "max_gain": round(max(changes), 4) if total > 0 else 0,
+        "max_loss": round(min(changes), 4) if total > 0 else 0,
+    }
+
+
+def _build_cumulative_stat(changes: list) -> dict:
+    """构建累计统计"""
+    up = sum(1 for c in changes if c > 0)
+    down = sum(1 for c in changes if c < 0)
+    total = len(changes)
+    return {
+        "count": total,
+        "up_count": up,
+        "down_count": down,
+        "up_probability": round(up / total * 100, 2) if total > 0 else 0,
+        "mean_change": round(float(np.mean(changes)), 4) if total > 0 else 0,
+        "max_gain": round(max(changes), 4) if total > 0 else 0,
+        "max_loss": round(min(changes), 4) if total > 0 else 0,
     }

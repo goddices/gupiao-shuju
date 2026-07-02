@@ -26,6 +26,7 @@ const route = useRoute()
 const menuItems = [
   { key: '/stocks', label: '股票列表' },
   { key: '/weekday', label: '星期分析' },
+  { key: '/holiday', label: '节日分析' },
   { key: '/manage', label: '数据管理' },
 ]
 
@@ -33,6 +34,7 @@ const selectedKeys = computed(() => {
   const path = route.path
   if (path.startsWith('/stocks')) return ['/stocks']
   if (path.startsWith('/weekday')) return ['/weekday']
+  if (path.startsWith('/holiday')) return ['/holiday']
   return [path]
 })
 
