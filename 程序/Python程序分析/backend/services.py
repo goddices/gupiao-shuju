@@ -671,7 +671,7 @@ def _load_holiday_data():
     holiday_events_by_name = defaultdict(list)
 
     for year in range(2008, 2027):
-        filename = os.path.join(script_dir, f"china_holidays_{year}.json")
+        filename = os.path.join(script_dir, "public_data", "cn_holidays", f"china_holidays_{year}.json")
         if not os.path.exists(filename):
             continue
         with open(filename, "r", encoding="utf-8") as f:

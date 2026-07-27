@@ -6,26 +6,34 @@ from io import StringIO
 import contextlib
 
 class ResultSaver:
-    def __init__(self, analysis_name):
+    def __init__(self, analysis_name, tag=None):
         """
         初始化结果保存器
-        
+
         Args:
             analysis_name: 分析程序名称（如：股票K线分析、线性回归等）
+            tag: 可选标签（如股票代码），用于区分同一脚本下不同结果的日志和图表
         """
         self.analysis_name = analysis_name
-        self.results_dir = "results"
-        self.create_results_dir()
-        # 使用指定的日期目录
-        # 使用固定日期目录
+        self.tag = tag
         self.timestamp = datetime.now().strftime('%Y%m%d')
-        self.session_dir = os.path.join(self.results_dir, "20260102")
+        # 目录结构: results/{analysis_name}/{yyyymmdd}/
+        self.results_dir = os.path.join("results", analysis_name, self.timestamp)
+        self.create_results_dir()
+        self.session_dir = self.results_dir
         self.create_session_dir()
-        
-        # 创建日志文件
-        self.log_file = os.path.join(self.session_dir, f"{analysis_name}_analysis_log.txt")
+
+        # 创建日志文件：如果有 tag，则在日志文件名中包含 tag
+        tag_suffix = f"_{tag}" if tag else ""
+        self.log_file = os.path.join(self.session_dir, f"{analysis_name}{tag_suffix}_analysis_log.txt")
         self.current_log = []
         
+    def set_tag(self, tag):
+        """更新标签（如股票代码），用于区分同一脚本下的不同结果"""
+        self.tag = tag
+        tag_suffix = f"_{tag}" if tag else ""
+        self.log_file = os.path.join(self.session_dir, f"{self.analysis_name}{tag_suffix}_analysis_log.txt")
+
     def create_results_dir(self):
         """创建results目录"""
         if not os.path.exists(self.results_dir):
@@ -123,15 +131,15 @@ class ResultSaver:
 # 全局结果保存器实例
 _saver = None
 
-def get_saver(analysis_name="分析程序"):
+def get_saver(analysis_name="分析程序", tag=None):
     """获取全局结果保存器实例"""
     global _saver
     if _saver is None:
-        _saver = ResultSaver(analysis_name)
+        _saver = ResultSaver(analysis_name, tag=tag)
     return _saver
 
-def reset_saver(analysis_name="分析程序"):
+def reset_saver(analysis_name="分析程序", tag=None):
     """重置结果保存器"""
     global _saver
-    _saver = ResultSaver(analysis_name)
+    _saver = ResultSaver(analysis_name, tag=tag)
     return _saver

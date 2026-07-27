@@ -283,16 +283,6 @@ class RegressionKLineAnalyzer:
         plt.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        
-        # 保存图表到指定目录
-        import os
-        results_dir = os.path.join("..", "..", "results", "20260102")
-        if not os.path.exists(results_dir):
-            os.makedirs(results_dir)
-        save_path = os.path.join(results_dir, f"{self.stock_code}_线性回归分析.jpg")
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"图表已保存至: {save_path}")
-        
         plt.show()
     
     def generate_report(self, saver=None):
@@ -463,35 +453,36 @@ def main():
     
     # 获取用户输入
     stock_code, stock_name, start_date, end_date, period = get_user_input(saver)
-    
+    saver.set_tag(stock_code)
+
     # 获取数据（异步调用）
     df = asyncio.run(analyzer.fetch_kline_data(stock_code, stock_name, start_date, end_date, period))
-    
+
     if df is None or df.empty:
         saver.log("未能获取到有效数据，分析终止。")
         return
-    
+
     saver.log("数据预览:")
     saver.log(df.head().to_string())
-    
+
     # 训练模型
     analyzer.train_model()
-    
+
     # 计算收益率
     analyzer.calculate_annual_return()
-    
+
     # 预测未来
     future_predictions = analyzer.predict_future(5)
-    
+
     # 生成报告
     analyzer.generate_report(saver)
-    
+
     # 绘制图表
     analyzer.plot_analysis(future_predictions)
-    
+
     # 保存图表
-    saver.save_chart("线性回归_图表.jpg")
-    
+    saver.save_chart(f"{stock_code}_线性回归.jpg")
+
     # 完成分析
     saver.finalize()
 

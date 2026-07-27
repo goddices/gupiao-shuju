@@ -308,11 +308,6 @@ class WeekdayChangeAnalyzer:
             ax6.grid(True, alpha=0.3)
 
         plt.tight_layout()
-
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        save_path = os.path.join(script_dir, f"{self.stock_code}_星期涨跌分析.jpg")
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"图表已保存至: {save_path}")
         plt.show()
 
     def generate_report(self, saver=None):
@@ -405,6 +400,7 @@ def main():
     analyzer = WeekdayChangeAnalyzer()
 
     stock_code, stock_name, start_date, end_date = get_user_input(saver)
+    saver.set_tag(stock_code)
 
     asyncio.run(analyzer.fetch_kline_data(stock_code, stock_name, start_date, end_date))
 
@@ -415,7 +411,7 @@ def main():
     analyzer.generate_report(saver)
     analyzer.plot_weekday_analysis()
 
-    saver.save_chart("星期涨跌分析_图表.jpg")
+    saver.save_chart(f"{stock_code}_星期涨跌分析.jpg")
     saver.finalize()
 
 

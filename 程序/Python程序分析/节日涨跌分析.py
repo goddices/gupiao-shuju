@@ -56,7 +56,7 @@ class HolidayAnalyzer:
         holiday_events_by_name = defaultdict(list)
 
         for year in range(2008, 2027):
-            filename = os.path.join(script_dir, f"china_holidays_{year}.json")
+            filename = os.path.join(script_dir, "public_data", "cn_holidays", f"china_holidays_{year}.json")
             if not os.path.exists(filename):
                 continue
 
@@ -696,11 +696,6 @@ class HolidayAnalyzer:
                                     fontsize=7)
 
         plt.tight_layout()
-
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        save_path = os.path.join(script_dir, f"{self.stock_code}_节日涨跌分析.jpg")
-        plt.savefig(save_path, dpi=200, bbox_inches='tight')
-        print(f"图表已保存至: {save_path}")
         plt.show()
 
     def plot_heatmap(self):
@@ -764,10 +759,7 @@ class HolidayAnalyzer:
         plt.colorbar(im, ax=ax, label='涨跌幅(%)')
         plt.tight_layout()
 
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        save_path = os.path.join(script_dir, f"{self.stock_code}_节日热力图.jpg")
-        plt.savefig(save_path, dpi=200, bbox_inches='tight')
-        print(f"热力图已保存至: {save_path}")
+        plt.tight_layout()
         plt.show()
 
 
@@ -815,6 +807,7 @@ def main():
 
     # 2. 获取用户输入
     stock_code, stock_name, start_date, end_date = get_user_input(saver)
+    saver.set_tag(stock_code)
 
     # 3. 获取K线数据
     asyncio.run(analyzer.fetch_kline_data(stock_code, stock_name, start_date, end_date))
@@ -835,9 +828,11 @@ def main():
 
     # 6. 绘图
     analyzer.plot_holiday_analysis(lookback=7, lookforward=7)
-    analyzer.plot_heatmap()
+    saver.save_chart(f"{stock_code}_节日涨跌分析.jpg")
 
-    saver.save_chart("节日涨跌分析_图表.jpg")
+    analyzer.plot_heatmap()
+    saver.save_chart(f"{stock_code}_节日热力图.jpg")
+
     saver.finalize()
 
 

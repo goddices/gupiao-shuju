@@ -270,13 +270,6 @@ class BasicKLineAnalyzer:
         plt.grid(True, alpha=0.3)
         
         plt.tight_layout()
-        
-        # 保存图表
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        save_path = os.path.join(script_dir, f"{self.stock_code}_K线分析.jpg")
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"图表已保存至: {save_path}")
-        
         plt.show()
     
     def generate_kline_report(self, saver=None):
@@ -417,31 +410,32 @@ def main():
     主函数，提供用户交互
     """
     # 初始化结果保存器
-    saver = reset_saver("股票K线分析")
-    
+    saver = reset_saver("波动分析")
+
     analyzer = BasicKLineAnalyzer()
-    
+
     # 获取用户输入
     stock_code, stock_name, start_date, end_date, period = get_user_input(saver)
-    
+    saver.set_tag(stock_code)
+
     # 获取数据（异步调用）
     df = asyncio.run(analyzer.fetch_kline_data(stock_code, stock_name, start_date, end_date, period))
-    
+
     saver.log("数据预览:")
     saver.log(df.head().to_string())
-    
+
     # 分析数据
     stats = analyzer.analyze_kline()
-    
+
     # 生成报告
     analyzer.generate_kline_report(saver)
-    
+
     # 绘制图表
     analyzer.plot_kline_analysis()
-    
+
     # 保存图表
-    saver.save_chart("股票K线分析_图表.jpg")
-    
+    saver.save_chart(f"{stock_code}_波动分析.jpg")
+
     # 完成分析
     saver.finalize()
 

@@ -388,6 +388,7 @@ def plot_analysis(
     buy_points: List[int],
     sell_points: List[int],
     stock_code: str,
+    show: bool = True,
 ):
     plt.rcParams["font.sans-serif"] = ["SimHei", "Arial Unicode MS", "DejaVu Sans"]
     plt.rcParams["axes.unicode_minus"] = False
@@ -474,12 +475,8 @@ def plot_analysis(
         )
 
     plt.tight_layout()
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    save_path = os.path.join(script_dir, f"{stock_code}_模拟持仓.jpg")
-    plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    print(f"图表已保存至: {save_path}")
-    plt.show()
+    if show:
+        plt.show()
 
 
 def get_user_input():
@@ -536,6 +533,7 @@ async def run_analysis(
     show_chart: bool = True,
 ):
     saver = reset_saver("模拟持仓")
+    saver.set_tag(stock_code)
 
     saver.log(f"正在获取 {stock_code} {start_date} 至 {end_date} 的日线数据...")
     df, stock_name = await fetch_kline_data(stock_code, start_date, end_date)
@@ -546,9 +544,8 @@ async def run_analysis(
     )
     print_report(summary, saver)
 
-    if show_chart:
-        plot_analysis(df, summary, buy_points, sell_points, stock_code)
-        saver.save_chart(f"{stock_code}_模拟持仓.jpg")
+    plot_analysis(df, summary, buy_points, sell_points, stock_code, show=show_chart)
+    saver.save_chart(f"{stock_code}_模拟持仓.jpg")
 
     saver.finalize()
     return summary
