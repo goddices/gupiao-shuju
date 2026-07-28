@@ -4,7 +4,9 @@
       "Bash(MPLBACKEND=Agg printf '%s\\\\n' \"000001\" \"上证指数\" \"2008-01-01\" \"2026-07-27\")",
       "Bash(python3 节日涨跌分析.py)",
       "Bash(python3 星期涨跌分析.py)",
-      "Bash(bash run_all_analysis.sh)"
+      "Bash(bash run_all_analysis.sh)",
+      "Bash(mysql -u root -p123456 -e \"SELECT 1\")",
+      "Bash(brew services *)"
     ]
   }
 }

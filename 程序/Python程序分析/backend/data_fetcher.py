@@ -1,4 +1,4 @@
-"""从东方财富拉取股票数据（不复权+前复权+后复权）并写入数据库"""
+"""拉取股票数据（不复权+前复权+后复权）并写入数据库，支持多数据源"""
 
 import sys
 import os
@@ -14,7 +14,7 @@ from sqlalchemy import text as sa_text
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from emdata import (
-    EastmoneyQuoteReader,
+    get_quote_reader,
     Market,
     AdjustPriceType,
     PeriodType,
@@ -23,7 +23,9 @@ from models import StockDailyQuote, StockCoreData
 
 
 def _guess_market(stock_code: str) -> str:
-    """根据股票代码推断市场：6开头=上海，0/3开头=深圳"""
+    """根据股票代码推断市场：6开头=上海，0/3开头=深圳（上证指数000001例外=上海）"""
+    if stock_code == "000001":
+        return Market.SHANGHAI  # 上证指数
     if stock_code.startswith("6"):
         return Market.SHANGHAI
     return Market.SHENGZHEN
@@ -56,7 +58,7 @@ async def _fetch_all_async(stock_code: str, market: str, end_date: str) -> dict:
     异步并行拉取三种复权类型的行情数据。
     返回 {"none": DataFrame, "forward": DataFrame, "backward": DataFrame}
     """
-    reader = EastmoneyQuoteReader()
+    reader = get_quote_reader()
 
     async def fetch_one(adjust_type: AdjustPriceType):
         return await reader.read_quote_async(
@@ -219,57 +221,31 @@ def fetch_stock_data_full(
         )
         new_count = len(new_rows)
 
-    # 7. 更新已有行的复权价格（批量）
-    if not update_rows.empty and any(
-        c in update_rows.columns
-        for c in [
-            "forward_open",
-            "forward_high",
-            "forward_low",
-            "forward_close",
-            "backward_open",
-            "backward_high",
-            "backward_low",
-            "backward_close",
+    # 7. 更新已有行：全部价格替换为新数据
+    if not update_rows.empty:
+        all_price_cols = [
+            "open_price", "high_price", "low_price", "close_price",
+            "volume", "amount",
+            "forward_open", "forward_high", "forward_low", "forward_close",
+            "backward_open", "backward_high", "backward_low", "backward_close",
         ]
-    ):
+        # 只更新 update_rows 中实际存在的列
         set_clauses = []
-        for adj_col in [
-            "forward_open",
-            "forward_high",
-            "forward_low",
-            "forward_close",
-            "backward_open",
-            "backward_high",
-            "backward_low",
-            "backward_close",
-        ]:
-            if adj_col in update_rows.columns:
-                set_clauses.append(f"{adj_col} = :{adj_col}")
+        for col in all_price_cols:
+            if col in update_rows.columns:
+                set_clauses.append(f"{col} = :{col}")
 
         if set_clauses:
-            # 构建批量更新参数列表
             update_params_list = []
             for idx, row in update_rows.iterrows():
                 params = {"code": stock_code, "date": idx.strftime("%Y-%m-%d")}
-                for adj_col in [
-                    "forward_open",
-                    "forward_high",
-                    "forward_low",
-                    "forward_close",
-                    "backward_open",
-                    "backward_high",
-                    "backward_low",
-                    "backward_close",
-                ]:
-                    if adj_col in row and pd.notna(row[adj_col]):
-                        params[adj_col] = float(row[adj_col])
-                if len(params) > 2:
-                    update_params_list.append(params)
+                for col in all_price_cols:
+                    if col in row and pd.notna(row[col]):
+                        params[col] = float(row[col])
+                update_params_list.append(params)
 
             if update_params_list:
                 set_str = ", ".join(set_clauses)
-                # 使用 executemany 批量执行
                 db.execute(
                     sa_text(
                         f"UPDATE stock_daily_quote SET {set_str} "
@@ -286,27 +262,15 @@ def fetch_stock_data_full(
     else:
         details.append("不复权: 数据已是最新")
 
-    forward_ok = data.get("forward") is not None and not data["forward"].empty
-    backward_ok = data.get("backward") is not None and not data["backward"].empty
-
-    if forward_ok:
-        details.append(
-            f"前复权: {'已更新' if update_count > 0 or new_count > 0 else '无新数据'}"
-        )
+    if update_count > 0:
+        details.append(f"已替换 {update_count} 条已有记录的全部价格")
     else:
-        details.append("前复权: 获取失败")
-
-    if backward_ok:
-        details.append(
-            f"后复权: {'已更新' if update_count > 0 or new_count > 0 else '无新数据'}"
-        )
-    else:
-        details.append("后复权: 获取失败")
+        details.append("无已有记录需要替换")
 
     failed = [d for d in details if "失败" in d]
-    if failed and new_count == 0:
-        status = "partial_error"
-    elif new_count > 0:
+    if failed and new_count == 0 and update_count == 0:
+        status = "error"
+    elif new_count > 0 or update_count > 0:
         status = "ok"
     else:
         status = "no_new_data"

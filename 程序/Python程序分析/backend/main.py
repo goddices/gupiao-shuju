@@ -8,12 +8,14 @@ from fastapi.responses import JSONResponse
 from database import engine
 from models import Base
 from routers import stocks, data, holiday
+from config.datasource import get_data_source
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用启动时自动创建数据库表（如不存在）"""
     Base.metadata.create_all(bind=engine)
+    print(f"[启动] 数据源: {get_data_source()}")
     yield
 
 
@@ -52,7 +54,11 @@ app.include_router(holiday.router)
 @app.get("/api/health")
 def health_check():
     """健康检查"""
-    return {"status": "ok", "message": "股票分析 API 运行中"}
+    return {
+        "status": "ok",
+        "message": "股票分析 API 运行中",
+        "data_source": get_data_source(),
+    }
 
 
 if __name__ == "__main__":

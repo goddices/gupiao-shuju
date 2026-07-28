@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData, StockCookie, StockWeekdayStats
-from emdata import EastmoneyStockListReader, SEED_COOKIE
+from emdata import get_stock_list_reader, SEED_COOKIE
+from config.datasource import is_eastmoney
 
 # 删除失败的 Cookie 阈值
 COOKIE_MAX_FAILS = 5
@@ -120,7 +121,7 @@ def sync_stock_list(db: Session) -> dict:
     fs = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23"
 
     async def _sync():
-        reader = EastmoneyStockListReader()
+        reader = get_stock_list_reader()
         stocks = await reader.fetch_all_stocks(fs, size=100, max_pages=200)
         return stocks
 
@@ -344,15 +345,17 @@ def get_stock_core_data(db: Session, stock_code: str) -> Optional[dict]:
 
 def sync_stock_core_data(db: Session, stock_code: str) -> dict:
     """
-    从东方财富获取个股核心数据并保存到数据库
+    获取个股核心数据并保存到数据库（支持多数据源）
     :return: {"status": str, "message": str, "data": dict|None}
     """
-    from emdata import EastmoneyCurrentCoreDataReader, Market
+    from emdata import get_core_data_reader, Market
 
     market = Market.SHANGHAI if stock_code.startswith("6") else Market.SHENGZHEN
-    fallback_cookies = get_fallback_cookies(db)
 
-    reader = EastmoneyCurrentCoreDataReader()
+    # 仅在东方财富数据源下获取 cookie 兜底列表
+    fallback_cookies = get_fallback_cookies(db) if is_eastmoney() else None
+
+    reader = get_core_data_reader()
     async def _fetch():
         return await reader.fetch_stock_info_async(market, stock_code, fallback_cookies)
 
@@ -364,8 +367,8 @@ def sync_stock_core_data(db: Session, stock_code: str) -> dict:
     if info is None:
         return {"status": "error", "message": "获取核心数据为空", "data": None}
 
-    # 保存成功的 Cookie 到 DB
-    if reader.last_used_cookie:
+    # 保存成功的 Cookie 到 DB（仅东方财富数据源有此机制）
+    if is_eastmoney() and hasattr(reader, 'last_used_cookie') and reader.last_used_cookie:
         save_working_cookie(db, reader.last_used_cookie)
 
     data = _stock_info_to_dict(info)
