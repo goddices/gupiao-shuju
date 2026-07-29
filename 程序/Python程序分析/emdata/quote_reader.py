@@ -15,6 +15,25 @@ from emdata.models import StockQuoteLine, StockQuote, QuoteMappers
 from emdata.cookie import generate_eastmoney_cookie_str
 
 
+def _generate_simple_cookie() -> str:
+    """生成简化版 Cookie：qgqp_b_id 用 hex 生成（与完整版 20 位数字不同）"""
+    import secrets
+    qgqp_b_id = secrets.token_hex(10)  # 20 字符 hex，与 20 位数字不同
+    current_ms = int(time.time() * 1000)
+    return (
+        f"fullscreengg=1; fullscreengg2=1; st_asi=delete; "
+        f"qgqp_b_id={qgqp_b_id}; "
+        f"st_nvi={secrets.token_hex(12)}; "
+        f"st_pvi={random.randint(10000000000000, 99999999999999)}; "
+        f"st_si={random.randint(10000000000000, 99999999999999)}; "
+        f"st_sn={random.randint(1, 10)}; "
+        f"st_sp={time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}; "
+        f"st_inirUrl=https%3A%2F%2Fwww.eastmoney.com%2F; "
+        f"websitepoptg_api_time={current_ms}; "
+        f"st_psi={current_ms}-{random.randint(100000000000, 999999999999)}-{random.randint(1000000000, 9999999999)}"
+    )
+
+
 class EastmoneyQuoteReader:
     """东方财富行情数据读取器"""
 
@@ -94,18 +113,32 @@ class EastmoneyQuoteReader:
                             return self._convert_quote(json_content, period_type)
             return None
 
-        # Phase 1: 随机 Cookie
-        for attempt in range(MAX_RETRIES + 1):
+        # 重试策略：单数次 (第1,3,5...次) = 完整 Cookie，双数次 (第2,4,6...次) = 简化 qgqp_b_id + 兜底
+        total_attempts = (MAX_RETRIES + 1) + len(getattr(self, '_fallback_cookies', [])) + 1
+        fallback = getattr(self, '_fallback_cookies', []) + [SEED_COOKIE]
+        fallback_idx = 0
+
+        for attempt in range(total_attempts):
             cookie = None
-            if attempt == 0:
-                if random.random() >= 1 / 3:
-                    cookie = self.cookie
-            else:
+
+            if attempt % 2 == 0:
+                # 单数次 (第1,3,5...次): 完整 Cookie — qgqp_b_id 用 20 位数字
                 try:
                     self.cookie = generate_eastmoney_cookie_str()
                 except Exception:
-                    self.cookie = f"fallback_{int(time.time()*1000)}"
+                    self.cookie = f"full_{int(time.time()*1000)}"
                 cookie = self.cookie
+            else:
+                # 双数次 (第2,4,6...次): 简化 Cookie — qgqp_b_id 用 hex 生成
+                try:
+                    cookie = _generate_simple_cookie()
+                except Exception:
+                    cookie = None
+                if not cookie and fallback_idx < len(fallback):
+                    cookie = fallback[fallback_idx]
+                    fallback_idx += 1
+
+            if cookie:
                 self.headers["Cookie"] = cookie
 
             try:
@@ -114,28 +147,13 @@ class EastmoneyQuoteReader:
                     self.last_used_cookie = cookie
                     return result
             except aiohttp.ClientError as e:
-                if _is_connection_error(e) and attempt < MAX_RETRIES:
+                if _is_connection_error(e) and attempt < total_attempts - 1:
                     wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
                     await asyncio.sleep(wait)
                     continue
                 print(f"获取行情数据失败: {e}")
             except Exception as e:
                 print(f"获取行情数据失败: {e}")
-
-        # Phase 2: 备用 Cookie 兜底
-        fallback = getattr(self, '_fallback_cookies', []) + [SEED_COOKIE]
-        seen = set()
-        for cookie in fallback:
-            if not cookie or cookie in seen:
-                continue
-            seen.add(cookie)
-            try:
-                result = await _try_request(cookie, params, random_str, period_type)
-                if result is not None:
-                    self.last_used_cookie = cookie
-                    return result
-            except Exception:
-                continue
 
         return None
 

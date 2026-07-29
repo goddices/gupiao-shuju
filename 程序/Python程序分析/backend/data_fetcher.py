@@ -112,7 +112,14 @@ def fetch_stock_data_full(
     if start_date == "2006-01-01":
         core = db.query(StockCoreData).filter(StockCoreData.stock_code == stock_code).first()
         if core and core.list_date:
-            start_date = core.list_date
+            try:
+                # 校验 list_date 格式为 YYYY-MM-DD (10字符) 或 YYYYMMDD (8字符)
+                ld = str(core.list_date).strip()
+                if len(ld) in (8, 10) and ld[:4].isdigit():
+                    pd.Timestamp(ld)  # 验证可解析
+                    start_date = ld
+            except (ValueError, pd.errors.OutOfBoundsDatetime):
+                pass  # 格式异常则保持默认 start_date
 
     # 1. 并行拉取三种复权
     try:

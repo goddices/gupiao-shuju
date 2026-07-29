@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any
 from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error, SEED_COOKIE
 from emdata.models import StockInfo
 from emdata.cookie import generate_eastmoney_cookie_str
+from emdata.quote_reader import _generate_simple_cookie
 
 
 class EastmoneyCurrentCoreDataReader:
@@ -181,18 +182,29 @@ class EastmoneyCurrentCoreDataReader:
                         print(f"HTTP {resp.status}")
             return None
 
-        # Phase 1: 随机 Cookie（首次 1/3 概率不带）
-        for attempt in range(MAX_RETRIES + 1):
+        # 单数次 (第1,3,5...次) = 完整 Cookie，双数次 (第2,4,6...次) = 简化 + 兜底
+        all_fallback = fallback_cookies + [SEED_COOKIE]
+        total_attempts = (MAX_RETRIES + 1) + len(all_fallback)
+        fallback_idx = 0
+
+        for attempt in range(total_attempts):
             cookie = None
-            if attempt == 0:
-                if random.random() >= 1 / 3:
-                    cookie = self.cookie
-            else:
+            if attempt % 2 == 0:
+                # 单数次: 完整 Cookie — qgqp_b_id 用 20 位数字
                 try:
                     self.cookie = generate_eastmoney_cookie_str()
                 except Exception:
                     self.cookie = f"retry_{attempt}"
                 cookie = self.cookie
+            else:
+                # 双数次: 简化 Cookie — qgqp_b_id 用 hex
+                try:
+                    cookie = _generate_simple_cookie()
+                except Exception:
+                    cookie = None
+                if not cookie and fallback_idx < len(all_fallback):
+                    cookie = all_fallback[fallback_idx]
+                    fallback_idx += 1
 
             try:
                 result = await _try_once(cookie)
@@ -200,30 +212,14 @@ class EastmoneyCurrentCoreDataReader:
                     self.last_used_cookie = cookie
                     return result
             except aiohttp.ClientError as e:
-                if _is_connection_error(e) and attempt < MAX_RETRIES:
+                if _is_connection_error(e) and attempt < total_attempts - 1:
                     wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
-                    print(f"连接错误 ({e})，重试 {stock_code} ({attempt + 1}/{MAX_RETRIES})...")
+                    print(f"连接错误 ({e})，重试 {stock_code} ({attempt + 1}/{total_attempts})...")
                     await asyncio.sleep(wait)
                     continue
                 print(f"请求核心数据失败 {stock_code}: {e}")
             except Exception as e:
                 print(f"请求核心数据失败 {stock_code}: {e}")
-
-        # Phase 2: 备用 Cookie 兜底
-        all_fallback = fallback_cookies + [SEED_COOKIE]
-        seen = set()
-        for cookie in all_fallback:
-            if not cookie or cookie in seen:
-                continue
-            seen.add(cookie)
-            print(f"尝试备用Cookie...")
-            try:
-                result = await _try_once(cookie)
-                if result is not None:
-                    self.last_used_cookie = cookie
-                    return result
-            except Exception as e:
-                print(f"备用Cookie失败: {e}")
 
         return None
 

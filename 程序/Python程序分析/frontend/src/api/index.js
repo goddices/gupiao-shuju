@@ -99,4 +99,36 @@ export function getDatasource() {
   return api.get('/import/datasource')
 }
 
+// ====== 模拟交易 ======
+
+// 账户概览
+export function getSimAccount() {
+  return api.get('/simulation/account')
+}
+
+// 买入
+export function simBuy(params) {
+  return api.post('/simulation/buy', null, { params })
+}
+
+// 卖出
+export function simSell(params) {
+  return api.post('/simulation/sell', null, { params })
+}
+
+// 交易记录
+export function getSimTrades(limit = 50) {
+  return api.get('/simulation/trades', { params: { limit } })
+}
+
+// 重置账户
+export function resetSimAccount(initialCash = 100000) {
+  return api.post('/simulation/reset', null, { params: { initial_cash: initialCash } })
+}
+
+// 更新费率
+export function updateFeeConfig(params) {
+  return api.put('/simulation/fee-config', null, { params })
+}
+
 export default api
