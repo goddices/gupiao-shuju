@@ -73,4 +73,30 @@ export function getHolidayAnalysis(code) {
   return api.get('/holiday/analysis', { params: { stock_code: code } })
 }
 
+// ====== 数据导入 ======
+
+// 导入行情数据
+export function importQuotes(stockCodes, startDate = '2006-01-01', endDate = null, dataSource = 'eastmoney') {
+  return api.post('/import/quotes', {
+    stock_codes: stockCodes,
+    start_date: startDate,
+    end_date: endDate,
+    data_source: dataSource,
+  })
+}
+
+// 导入基础信息（股票列表 + 核心数据）
+export function importBasicInfo(stockCodes = null, syncList = true, dataSource = 'eastmoney') {
+  return api.post('/import/basic-info', {
+    stock_codes: stockCodes,
+    sync_stock_list: syncList,
+    data_source: dataSource,
+  })
+}
+
+// 获取当前数据源
+export function getDatasource() {
+  return api.get('/import/datasource')
+}
+
 export default api

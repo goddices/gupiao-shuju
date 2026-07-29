@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from database import engine
 from models import Base
-from routers import stocks, data, holiday
+from routers import stocks, data, holiday, import_data
 from config.datasource import get_data_source
 
 
@@ -49,6 +49,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(stocks.router)
 app.include_router(data.router)
 app.include_router(holiday.router)
+app.include_router(import_data.router)
 
 
 @app.get("/api/health")

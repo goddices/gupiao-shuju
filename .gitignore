@@ -392,3 +392,7 @@ FodyWeavers.xsd
 
 # 忽略所有目录下的 .DS_Store 文件（包括子目录）
 **/.DS_Store
+
+
+
+dist/

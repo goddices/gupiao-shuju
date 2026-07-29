@@ -27,6 +27,7 @@ const menuItems = [
   { key: '/stocks', label: '股票列表' },
   { key: '/weekday', label: '星期分析' },
   { key: '/holiday', label: '节日分析' },
+  { key: '/import', label: '数据导入' },
   { key: '/manage', label: '数据管理' },
 ]
 
