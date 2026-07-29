@@ -52,7 +52,7 @@ class EastmoneyCurrentCoreDataReader:
     DIVIDE_BY_10000 = set()
     PERCENT_FIELDS = set()
 
-    def __init__(self, cookie: Optional[str] = None):
+    def __init__(self, cookie: Optional[str] = None, db_cookies: list = None):
         self.base_headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -62,6 +62,7 @@ class EastmoneyCurrentCoreDataReader:
             "Referer": "https://quote.eastmoney.com/",
         }
         self.cookie = cookie or generate_eastmoney_cookie_str()
+        self._db_cookies = db_cookies or []
 
     def _build_params(self, market: str, stock_code: str) -> Dict[str, Any]:
         """构建请求参数"""
@@ -182,44 +183,44 @@ class EastmoneyCurrentCoreDataReader:
                         print(f"HTTP {resp.status}")
             return None
 
-        # 单数次 (第1,3,5...次) = 完整 Cookie，双数次 (第2,4,6...次) = 简化 + 兜底
-        all_fallback = fallback_cookies + [SEED_COOKIE]
-        total_attempts = (MAX_RETRIES + 1) + len(all_fallback)
-        fallback_idx = 0
+        # 策略：优先已验证 Cookie（SEED + fallback + DB），生成的新 Cookie 最后尝试
+        verified_cookies = [SEED_COOKIE]
+        verified_cookies.extend(fallback_cookies or [])
+        verified_cookies.extend(self._db_cookies)
 
-        for attempt in range(total_attempts):
-            cookie = None
-            if attempt % 2 == 0:
-                # 单数次: 完整 Cookie — qgqp_b_id 用 20 位数字
-                try:
-                    self.cookie = generate_eastmoney_cookie_str()
-                except Exception:
-                    self.cookie = f"retry_{attempt}"
-                cookie = self.cookie
-            else:
-                # 双数次: 简化 Cookie — qgqp_b_id 用 hex
-                try:
-                    cookie = _generate_simple_cookie()
-                except Exception:
-                    cookie = None
-                if not cookie and fallback_idx < len(all_fallback):
-                    cookie = all_fallback[fallback_idx]
-                    fallback_idx += 1
+        seen = set()
+        all_tries = []
+        for c in verified_cookies:
+            if c and c not in seen:
+                seen.add(c)
+                all_tries.append(('verified', c))
 
+        # 生成 Cookie 最后尝试
+        for i in range(MAX_RETRIES):
+            try:
+                all_tries.append(('generated', generate_eastmoney_cookie_str()))
+            except Exception:
+                pass
+            try:
+                all_tries.append(('generated', _generate_simple_cookie()))
+            except Exception:
+                pass
+
+        for kind, cookie in all_tries:
+            if not cookie:
+                continue
             try:
                 result = await _try_once(cookie)
                 if result is not None:
                     self.last_used_cookie = cookie
                     return result
             except aiohttp.ClientError as e:
-                if _is_connection_error(e) and attempt < total_attempts - 1:
+                if _is_connection_error(e):
                     wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
-                    print(f"连接错误 ({e})，重试 {stock_code} ({attempt + 1}/{total_attempts})...")
                     await asyncio.sleep(wait)
                     continue
-                print(f"请求核心数据失败 {stock_code}: {e}")
-            except Exception as e:
-                print(f"请求核心数据失败 {stock_code}: {e}")
+            except Exception:
+                continue
 
         return None
 

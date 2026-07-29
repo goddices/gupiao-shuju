@@ -53,12 +53,12 @@ def _quote_to_dataframe(quote) -> pd.DataFrame:
     return df
 
 
-async def _fetch_all_async(stock_code: str, market: str, end_date: str) -> dict:
+async def _fetch_all_async(stock_code: str, market: str, end_date: str, db_cookies: list = None) -> dict:
     """
     异步并行拉取三种复权类型的行情数据。
     返回 {"none": DataFrame, "forward": DataFrame, "backward": DataFrame}
     """
-    reader = get_quote_reader()
+    reader = get_quote_reader(db_cookies=db_cookies)
 
     async def fetch_one(adjust_type: AdjustPriceType):
         return await reader.read_quote_async(
@@ -123,7 +123,10 @@ def fetch_stock_data_full(
 
     # 1. 并行拉取三种复权
     try:
-        data = asyncio.run(_fetch_all_async(stock_code, market, end_date))
+        # 从数据库加载已验证的 Cookie 列表作为最终兜底
+        from services import get_fallback_cookies
+        db_cookies = get_fallback_cookies(db)
+        data = asyncio.run(_fetch_all_async(stock_code, market, end_date, db_cookies))
     except Exception as e:
         return {
             "stock_code": stock_code,

@@ -16,14 +16,26 @@ from emdata.cookie import generate_eastmoney_cookie_str
 
 
 def _generate_simple_cookie() -> str:
-    """生成简化版 Cookie：qgqp_b_id 用 hex 生成（与完整版 20 位数字不同）"""
+    """双数次 Cookie：qgqp_b_id 用 20 位数字（与单数次的指纹 MD5 格式不同），其余字段完整"""
+    from emdata.cookie import generate_random20_qgqp_b_id
     import secrets
-    qgqp_b_id = secrets.token_hex(10)  # 20 字符 hex，与 20 位数字不同
+
+    def _random_alnum(length=24):
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        raw = "".join(secrets.choice(chars) for _ in range(length))
+        pos = random.randint(4, length - 4)
+        return raw[:pos] + "-" + raw[pos + 1:]
+
+    qgqp_b_id = generate_random20_qgqp_b_id()
     current_ms = int(time.time() * 1000)
     return (
         f"fullscreengg=1; fullscreengg2=1; st_asi=delete; "
         f"qgqp_b_id={qgqp_b_id}; "
-        f"st_nvi={secrets.token_hex(12)}; "
+        f"nid18={secrets.token_hex(16)}; "
+        f"nid18_create_time={current_ms}; "
+        f"gviem={_random_alnum(24)}; "
+        f"gviem_create_time={current_ms}; "
+        f"st_nvi={_random_alnum(24)}; "
         f"st_pvi={random.randint(10000000000000, 99999999999999)}; "
         f"st_si={random.randint(10000000000000, 99999999999999)}; "
         f"st_sn={random.randint(1, 10)}; "
@@ -37,15 +49,17 @@ def _generate_simple_cookie() -> str:
 class EastmoneyQuoteReader:
     """东方财富行情数据读取器"""
 
-    def __init__(self, mappers: QuoteMappers = None, cookie: str = None):
+    def __init__(self, mappers: QuoteMappers = None, cookie: str = None, db_cookies: list = None):
         """
         初始化行情读取器
         :param mappers: 映射器实例，默认为QuoteMappers()
         :param cookie: 请求Cookie
+        :param db_cookies: 数据库中已验证的备用 Cookie 列表（最后兜底用）
         """
         self.mappers = mappers or QuoteMappers()
         self.base_url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
         self.cookie = cookie or generate_eastmoney_cookie_str()
+        self._db_cookies = db_cookies or []
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -99,61 +113,63 @@ class EastmoneyQuoteReader:
             "_": str(int(datetime.now().timestamp() * 1000)),
         }
 
-        async def _try_request(cookie_val, params, random_str, period_type):
-            """单次请求，成功返回 StockQuote，失败返回 None（网络异常向外抛出）"""
-            headers = dict(self.headers)
-            if cookie_val:
-                headers["Cookie"] = cookie_val
-            async with aiohttp.ClientSession(headers=headers) as session:
-                async with session.get(self.base_url, params=params) as response:
-                    if response.status == 200:
-                        content = await response.text()
-                        if content.startswith(random_str) and content.endswith(");"):
-                            json_content = content[len(random_str) + 1 : -2]
-                            return self._convert_quote(json_content, period_type)
-            return None
+        # 策略：东财服务器将 Cookie 当作不可修改的会话令牌，生成的新 Cookie 会被秒拒。
+        # 因此优先用已验证的 Cookie，SEED_COOKIE 作为基础兜底。
+        # 尝试顺序: SEED_COOKIE → DB cookies → 生成Cookie(仅作最终尝试)
 
-        # 重试策略：单数次 (第1,3,5...次) = 完整 Cookie，双数次 (第2,4,6...次) = 简化 qgqp_b_id + 兜底
-        total_attempts = (MAX_RETRIES + 1) + len(getattr(self, '_fallback_cookies', [])) + 1
-        fallback = getattr(self, '_fallback_cookies', []) + [SEED_COOKIE]
-        fallback_idx = 0
+        # 收集所有可用的已验证 Cookie
+        verified_cookies = [SEED_COOKIE]
+        verified_cookies.extend(self._db_cookies)
+        verified_cookies.extend(getattr(self, '_fallback_cookies', []))
 
-        for attempt in range(total_attempts):
-            cookie = None
+        # 去重
+        seen = set()
+        all_tries = []
+        for c in verified_cookies:
+            if c and c not in seen:
+                seen.add(c)
+                all_tries.append(('verified', c))
 
-            if attempt % 2 == 0:
-                # 单数次 (第1,3,5...次): 完整 Cookie — qgqp_b_id 用 20 位数字
-                try:
-                    self.cookie = generate_eastmoney_cookie_str()
-                except Exception:
-                    self.cookie = f"full_{int(time.time()*1000)}"
-                cookie = self.cookie
-            else:
-                # 双数次 (第2,4,6...次): 简化 Cookie — qgqp_b_id 用 hex 生成
-                try:
-                    cookie = _generate_simple_cookie()
-                except Exception:
-                    cookie = None
-                if not cookie and fallback_idx < len(fallback):
-                    cookie = fallback[fallback_idx]
-                    fallback_idx += 1
-
-            if cookie:
-                self.headers["Cookie"] = cookie
-
+        # 最后加几次生成 Cookie 的尝试（大概率没用，但万一）
+        for i in range(MAX_RETRIES):
             try:
-                result = await _try_request(cookie, params, random_str, period_type)
-                if result is not None:
-                    self.last_used_cookie = cookie
-                    return result
-            except aiohttp.ClientError as e:
-                if _is_connection_error(e) and attempt < total_attempts - 1:
-                    wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
-                    await asyncio.sleep(wait)
+                all_tries.append(('generated', generate_eastmoney_cookie_str()))
+            except Exception:
+                pass
+            try:
+                all_tries.append(('generated', _generate_simple_cookie()))
+            except Exception:
+                pass
+
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            for kind, cookie in all_tries:
+                if not cookie:
                     continue
-                print(f"获取行情数据失败: {e}")
-            except Exception as e:
-                print(f"获取行情数据失败: {e}")
+                req_headers = dict(self.headers)
+                req_headers["Cookie"] = cookie
+
+                try:
+                    async with session.get(self.base_url, params=params, headers=req_headers) as response:
+                        if response.status == 200:
+                            content = await response.text()
+                            if content.startswith(random_str) and content.endswith(");"):
+                                json_content = content[len(random_str) + 1 : -2]
+                                result = self._convert_quote(json_content, period_type)
+                                if result is not None:
+                                    self.last_used_cookie = cookie
+                                    if kind == 'verified':
+                                        self._fallback_cookies = getattr(self, '_fallback_cookies', [])
+                                        if cookie not in self._fallback_cookies:
+                                            self._fallback_cookies.insert(0, cookie)
+                                    return result
+                except aiohttp.ClientError as e:
+                    if _is_connection_error(e):
+                        wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
+                        await asyncio.sleep(wait)
+                        continue
+                    print(f"获取行情数据失败: {e}")
+                except Exception as e:
+                    print(f"获取行情数据失败: {e}")
 
         return None
 

@@ -21,7 +21,7 @@ class EastmoneyStockListReader:
 
     BASE_URL = "https://push2.eastmoney.com/api/qt/clist/get"
 
-    def __init__(self, cookie: Optional[str] = None):
+    def __init__(self, cookie: Optional[str] = None, db_cookies: list = None):
         self.base_headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -31,6 +31,7 @@ class EastmoneyStockListReader:
             "Referer": "https://quote.eastmoney.com/",
         }
         self.cookie = cookie or generate_eastmoney_cookie_str()
+        self._db_cookies = db_cookies or []
 
     def _build_params(self, fs: str, page: int, size: int = 100) -> Dict[str, Any]:
         """
@@ -73,34 +74,39 @@ class EastmoneyStockListReader:
         params = self._build_params(fs, page, size)
         cb = params["cb"]
 
-        # 单数次 (第1,3,5...次) = 完整 Cookie，双数次 (第2,4,6...次) = 简化 + 兜底
-        fallback = getattr(self, '_fallback_cookies', []) + [SEED_COOKIE]
-        total_attempts = (MAX_RETRIES + 1) + len(fallback)
-        fallback_idx = 0
+        # 策略：优先已验证 Cookie（SEED + DB），生成的新 Cookie 最后尝试
+        verified_cookies = [SEED_COOKIE]
+        verified_cookies.extend(self._db_cookies)
+        verified_cookies.extend(getattr(self, '_fallback_cookies', []))
 
-        for attempt in range(total_attempts):
+        seen = set()
+        all_tries = []
+        for c in verified_cookies:
+            if c and c not in seen:
+                seen.add(c)
+                all_tries.append(('verified', c))
+
+        # 生成 Cookie 作为最后尝试
+        for i in range(MAX_RETRIES):
+            try:
+                all_tries.append(('generated', generate_eastmoney_cookie_str()))
+            except Exception:
+                pass
+            try:
+                all_tries.append(('generated', _generate_simple_cookie()))
+            except Exception:
+                pass
+
+        for kind, cookie in all_tries:
+            if not cookie:
+                continue
             try:
                 req_headers = dict(self.base_headers)
-                if attempt % 2 == 0:
-                    # 单数次: 完整 Cookie — qgqp_b_id 用 20 位数字
-                    if attempt > 0 or not skip_first_cookie:
-                        self.cookie = generate_eastmoney_cookie_str()
-                    if self.cookie:
-                        req_headers["Cookie"] = self.cookie
-                else:
-                    # 双数次: 简化 Cookie — qgqp_b_id 用 hex
-                    cookie = _generate_simple_cookie()
-                    if not cookie and fallback_idx < len(fallback):
-                        cookie = fallback[fallback_idx]
-                        fallback_idx += 1
-                    if cookie:
-                        req_headers["Cookie"] = cookie
+                req_headers["Cookie"] = cookie
 
                 async with session.get(self.BASE_URL, params=params, headers=req_headers) as resp:
                     if resp.status != 200:
-                        if attempt < total_attempts - 1:
-                            continue
-                        return None
+                        continue
                     text = await resp.text()
                     if text.startswith(cb) and text.endswith(");"):
                         json_str = text[len(cb) + 1 : -2]
@@ -108,11 +114,11 @@ class EastmoneyStockListReader:
                         json_str = text
                     data = json.loads(json_str)
                     if data.get("rc") != 0:
-                        return None
+                        continue
                     diff = data.get("data", {}).get("diff", [])
                     if not diff:
-                        return None
-                    self.last_used_cookie = req_headers.get("Cookie")
+                        continue
+                    self.last_used_cookie = cookie
                     return [
                         {"code": i.get("f12"), "market": i.get("f13"), "name": i.get("f14"),
                          "price": i.get("f1"), "change_pct": i.get("f2"), "change_amount": i.get("f4"),
@@ -120,13 +126,12 @@ class EastmoneyStockListReader:
                         for i in diff
                     ]
             except aiohttp.ClientError as e:
-                if _is_connection_error(e) and attempt < total_attempts - 1:
+                if _is_connection_error(e):
                     wait = RETRY_DELAY_MIN + random.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN)
                     await asyncio.sleep(wait)
                     continue
-                return None
             except Exception:
-                return None
+                continue
 
         return None
 

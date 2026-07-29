@@ -121,7 +121,7 @@ def sync_stock_list(db: Session) -> dict:
     fs = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23"
 
     async def _sync():
-        reader = get_stock_list_reader()
+        reader = get_stock_list_reader(db_cookies=get_fallback_cookies(db))
         stocks = await reader.fetch_all_stocks(fs, size=100, max_pages=200)
         return stocks
 
@@ -355,7 +355,7 @@ def sync_stock_core_data(db: Session, stock_code: str) -> dict:
     # 仅在东方财富数据源下获取 cookie 兜底列表
     fallback_cookies = get_fallback_cookies(db) if is_eastmoney() else None
 
-    reader = get_core_data_reader()
+    reader = get_core_data_reader(db_cookies=get_fallback_cookies(db))
     async def _fetch():
         return await reader.fetch_stock_info_async(market, stock_code, fallback_cookies)
 

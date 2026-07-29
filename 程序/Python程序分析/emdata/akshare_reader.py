@@ -71,9 +71,9 @@ class AKShareQuoteReader:
     接口与 EastmoneyQuoteReader 完全一致
     """
 
-    def __init__(self, mappers: QuoteMappers = None, cookie: str = None):
+    def __init__(self, mappers: QuoteMappers = None, cookie: str = None, db_cookies: list = None):
         self.mappers = mappers or QuoteMappers()
-        # cookie 参数仅保留兼容性，AKShare 不需要 cookie
+        # cookie/db_cookies 参数仅保留兼容性，AKShare 不需要
 
     async def read_quote_async(
         self,
@@ -213,8 +213,8 @@ class AKShareStockListReader:
     接口与 EastmoneyStockListReader 一致
     """
 
-    def __init__(self, cookie: Optional[str] = None):
-        # cookie 参数仅保留兼容性
+    def __init__(self, cookie: Optional[str] = None, db_cookies: list = None):
+        # cookie/db_cookies 参数仅保留兼容性
         pass
 
     async def fetch_page(
@@ -304,7 +304,7 @@ class AKShareCoreDataReader:
     接口与 EastmoneyCurrentCoreDataReader 一致
     """
 
-    def __init__(self, cookie: Optional[str] = None):
+    def __init__(self, cookie: Optional[str] = None, db_cookies: list = None):
         pass
 
     async def fetch_stock_info_async(
