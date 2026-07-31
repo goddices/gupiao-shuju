@@ -6,6 +6,7 @@ import ImportData from '../views/ImportData.vue'
 import WeekdayAnalysis from '../views/WeekdayAnalysis.vue'
 import HolidayAnalysis from '../views/HolidayAnalysis.vue'
 import Simulation from '../views/Simulation.vue'
+import ExportData from '../views/ExportData.vue'
 
 const routes = [
   { path: '/', redirect: '/stocks' },
@@ -16,6 +17,7 @@ const routes = [
   { path: '/simulation', name: 'Simulation', component: Simulation },
   { path: '/weekday', name: 'WeekdayAnalysis', component: WeekdayAnalysis },
   { path: '/holiday', name: 'HolidayAnalysis', component: HolidayAnalysis },
+  { path: '/export', name: 'ExportData', component: ExportData },
 ]
 
 const router = createRouter({

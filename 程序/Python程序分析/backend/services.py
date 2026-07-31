@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData, StockCookie, StockWeekdayStats
 from emdata import get_stock_list_reader, SEED_COOKIE
 from config.datasource import is_eastmoney
+from database import SessionLocal
 
 # 删除失败的 Cookie 阈值
 COOKIE_MAX_FAILS = 5
@@ -340,6 +341,8 @@ def get_stock_core_data(db: Session, stock_code: str) -> Optional[dict]:
         "retained_eps": _f(row.retained_eps),
         "list_date": row.list_date,
         "change_pct": _f(row.change_pct),
+        "last_sync_time": row.last_sync_time,
+        "data_source_type": row.data_source_type,
     }
 
 
@@ -396,6 +399,81 @@ def get_latest_trade_date(db: Session, stock_code: str) -> Optional[date]:
         .first()
     )
     return row.trade_date if row else None
+
+
+# ---- 行情自动同步（本地优先 + 新鲜度检查） ----
+import threading
+
+# 正在同步的股票集合,避免同一股票并发重复同步
+_syncing_stocks = set()
+_syncing_stocks_lock = threading.Lock()
+
+
+def _try_start_sync(stock_code: str) -> bool:
+    """登记股票为同步中,返回是否可启动(防止并发重复同步)"""
+    with _syncing_stocks_lock:
+        if stock_code in _syncing_stocks:
+            return False
+        _syncing_stocks.add(stock_code)
+    return True
+
+
+def _sync_quote_in_background(stock_code: str) -> Optional[threading.Thread]:
+    """在后台线程中同步股票行情（使用独立数据库会话）"""
+    if not _try_start_sync(stock_code):
+        return None
+
+    def _sync():
+        from data_fetcher import fetch_stock_data_full
+        try:
+            sdb = SessionLocal()
+            try:
+                fetch_stock_data_full(sdb, stock_code)
+                sdb.commit()
+                print(f"[auto-sync] {stock_code} 后台同步完成")
+            except Exception as e:
+                sdb.rollback()
+                print(f"[auto-sync] {stock_code} 同步失败: {e}")
+            finally:
+                sdb.close()
+        finally:
+            with _syncing_stocks_lock:
+                _syncing_stocks.discard(stock_code)
+
+    t = threading.Thread(target=_sync, daemon=True, name=f"auto-sync-{stock_code}")
+    t.start()
+    return t
+
+
+def _is_quote_fresh(db: Session, stock_code: str) -> bool:
+    """判断行情是否最新: 最新交易日 >= 2 天前（覆盖周末/节假日）"""
+    latest = get_latest_trade_date(db, stock_code)
+    if latest is None:
+        return False
+    return latest >= date.today() - timedelta(days=2)
+
+
+def ensure_quote_available(db: Session, stock_code: str):
+    """确保行情数据可用: 本地优先,数据缺失/过期时自动同步
+
+    - 有数据且最新: 直接使用本地数据,不触发同步
+    - 有数据但过期: 后台同步,本次先返回本地旧数据
+    - 无数据: 限时同步(最多 10 秒),本次请求即可返回远程同步的数据
+    """
+    has_data = get_latest_trade_date(db, stock_code) is not None
+    if not has_data:
+        # 无数据: 限时等待同步完成,让用户第一次请求就看到远程数据
+        t = _sync_quote_in_background(stock_code)
+        if t is not None:
+            t.join(timeout=10.0)
+        # 后台线程可能已提交新数据,结束当前事务以便后续查询可见
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    elif not _is_quote_fresh(db, stock_code):
+        # 有数据但过期: 后台同步,立即返回现有数据
+        _sync_quote_in_background(stock_code)
 
 
 # ---- 星期涨跌分析 ----

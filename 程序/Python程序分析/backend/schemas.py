@@ -111,7 +111,7 @@ class StockFetchOut(BaseModel):
 class StockCoreDataOut(BaseModel):
     """个股核心数据（PE、PB、ROE、市值、营收等）"""
     stock_code: str
-    market: str
+    market: Optional[str] = None
     stock_name: Optional[str] = None
     total_market_cap: Optional[float] = None
     float_market_cap: Optional[float] = None
@@ -132,6 +132,8 @@ class StockCoreDataOut(BaseModel):
     retained_eps: Optional[float] = None
     list_date: Optional[str] = None
     change_pct: Optional[float] = None
+    last_sync_time: Optional[datetime] = None
+    data_source_type: Optional[str] = None
 
 
 class StockCoreDataSyncOut(BaseModel):

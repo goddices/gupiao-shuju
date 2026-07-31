@@ -28,6 +28,7 @@ const menuItems = [
   { key: '/weekday', label: '星期分析' },
   { key: '/holiday', label: '节日分析' },
   { key: '/import', label: '数据导入' },
+  { key: '/export', label: '数据导出' },
   { key: '/simulation', label: '模拟交易' },
   { key: '/manage', label: '数据管理' },
 ]

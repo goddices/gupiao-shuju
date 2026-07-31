@@ -2,7 +2,7 @@ import json
 import pandas as pd
 from datetime import datetime
 from emdata import (
-    EastmoneyQuoteReader,
+    get_quote_reader,
     Market,
     AdjustPriceType,
     PeriodType,
@@ -61,7 +61,7 @@ def main():
 
     # 2. 获取中国石油不复权日线
     print("正在获取中国石油(601857)日线数据...")
-    reader = EastmoneyQuoteReader()
+    reader = get_quote_reader()
     quote = reader.read_quote(
         market=Market.SHANGHAI,
         stock_code="601857",

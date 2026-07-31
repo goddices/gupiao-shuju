@@ -8,7 +8,7 @@ warnings.filterwarnings('ignore')
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from datetime import datetime
-from emdata import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
+from emdata import get_quote_reader, Market, AdjustPriceType, PeriodType
 from result_saver import get_saver, reset_saver
 
 class RegressionKLineAnalyzer:
@@ -63,7 +63,7 @@ class RegressionKLineAnalyzer:
         end_date_formatted = end_date.replace('-', '')
         
         # 创建行情读取器
-        reader = EastmoneyQuoteReader()
+        reader = get_quote_reader()
         
         try:
             # 获取行情数据

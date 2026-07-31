@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from database import engine
 from models import Base
-from routers import stocks, data, holiday, import_data, simulation
+from routers import stocks, data, holiday, import_data, simulation, export_data
 from config.datasource import get_data_source
 
 
@@ -51,6 +51,7 @@ app.include_router(data.router)
 app.include_router(holiday.router)
 app.include_router(import_data.router)
 app.include_router(simulation.router)
+app.include_router(export_data.router)
 
 
 @app.get("/api/health")

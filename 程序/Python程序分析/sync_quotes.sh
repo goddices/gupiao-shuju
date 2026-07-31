@@ -1,5 +1,6 @@
 #!/bin/bash
-# 同步6只默认股票的日K线行情到数据库
+# 同步6只默认股票的日K线行情到数据库（不复权 + 前复权 + 后复权）
+# 复权数据写入 forward_* / backward_* 字段；主数据源失败时自动用 AKShare 兜底
 # 用法: bash sync_quotes.sh [数据源]
 #       bash sync_quotes.sh eastmoney   # 东方财富
 #       bash sync_quotes.sh akshare     # AKShare
@@ -10,6 +11,11 @@ cd "$SCRIPT_DIR"
 
 DATA_SOURCE="${1:-}"
 TODAY=$(date +%Y%m%d)
+
+# 数据源参数生效:通过环境变量传给 Python（config/datasource.py 读取）
+if [ -n "$DATA_SOURCE" ]; then
+    export DATA_SOURCE="$DATA_SOURCE"
+fi
 
 # 默认6只股票: 中国石油 中国移动 上证指数 贵州茅台 寒武纪 中芯国际
 STOCKS=("601857" "600941" "000001" "600519" "688256" "688981")

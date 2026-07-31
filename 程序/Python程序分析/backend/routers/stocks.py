@@ -29,6 +29,7 @@ from services import (
     sync_stock_core_data,
     compute_weekday_stats,
     get_weekday_analysis,
+    ensure_quote_available,
 )
 from data_fetcher import fetch_stock_data_full
 
@@ -78,6 +79,8 @@ def stock_quotes(
     """分页获取日K线数据"""
     if adjust_type not in ("none", "forward", "backward"):
         raise HTTPException(status_code=400, detail="adjust_type 必须为 none / forward / backward")
+    # 本地优先: 数据缺失/过期时自动同步
+    ensure_quote_available(db, stock_code)
     return get_stock_quotes(
         db, stock_code, adjust_type, start_date, end_date, page, page_size
     )
@@ -104,6 +107,7 @@ def fetch_stock_core(stock_code: str, db: Session = Depends(get_db)):
 @router.get("/{stock_code}/stats", response_model=StockStatsOut)
 def stock_stats(stock_code: str, db: Session = Depends(get_db)):
     """获取股票统计信息"""
+    ensure_quote_available(db, stock_code)
     result = get_stock_stats(db, stock_code)
     if result["total_records"] == 0:
         raise HTTPException(status_code=404, detail=f"股票 {stock_code} 无数据")
@@ -133,6 +137,7 @@ def compute_weekday(stock_code: str, db: Session = Depends(get_db)):
 @router.get("/{stock_code}/weekday-analysis", response_model=WeekdayAnalysisResponse)
 def weekday_analysis(stock_code: str, db: Session = Depends(get_db)):
     """获取个股星期涨跌分析（含未来5日预测）"""
+    ensure_quote_available(db, stock_code)
     result = get_weekday_analysis(db, stock_code)
     if result is None:
         raise HTTPException(status_code=404, detail=f"股票 {stock_code} 暂无星期统计，请先调用 compute-weekday-stats")

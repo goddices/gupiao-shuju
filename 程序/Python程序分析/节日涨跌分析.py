@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 from datetime import datetime, timedelta, date
 from collections import defaultdict
 
-from emdata import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
+from emdata import get_quote_reader, Market, AdjustPriceType, PeriodType
 from result_saver import get_saver, reset_saver
 
 # 主要节日列表（按重要性排序）
@@ -147,7 +147,7 @@ class HolidayAnalyzer:
         else:
             market_code = Market.SHANGHAI if stock_code.startswith('6') else Market.SHENGZHEN
 
-        reader = EastmoneyQuoteReader()
+        reader = get_quote_reader()
 
         try:
             # 计算需要获取的数据量（大约天数 * 1.5 确保足够）

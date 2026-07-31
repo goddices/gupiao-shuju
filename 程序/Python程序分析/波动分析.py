@@ -6,7 +6,7 @@ import asyncio
 import warnings
 warnings.filterwarnings('ignore')
 from datetime import datetime
-from emdata import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
+from emdata import get_quote_reader, Market, AdjustPriceType, PeriodType
 from result_saver import get_saver, reset_saver
 
 class BasicKLineAnalyzer:
@@ -60,7 +60,7 @@ class BasicKLineAnalyzer:
         end_date_formatted = end_date.replace('-', '')
         
         # 创建行情读取器
-        reader = EastmoneyQuoteReader()
+        reader = get_quote_reader()
         
         try:
             # 获取行情数据

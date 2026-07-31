@@ -6,7 +6,7 @@ import asyncio
 import warnings
 warnings.filterwarnings('ignore')
 from datetime import datetime, timedelta
-from emdata import EastmoneyQuoteReader, Market, AdjustPriceType, PeriodType
+from emdata import get_quote_reader, Market, AdjustPriceType, PeriodType
 from result_saver import get_saver, reset_saver
 
 WEEK_MAP = {
@@ -43,7 +43,7 @@ class WeekdayChangeAnalyzer:
         start_date_formatted = start_date.replace('-', '')
         end_date_formatted = end_date.replace('-', '')
 
-        reader = EastmoneyQuoteReader()
+        reader = get_quote_reader()
 
         try:
             quote = await reader.read_quote_async(

@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 
 from emdata import (
     AdjustPriceType,
-    EastmoneyQuoteReader,
+    get_quote_reader,
     Market,
     PeriodType,
 )
@@ -54,7 +54,7 @@ async def fetch_kline_data(
 ) -> Tuple[pd.DataFrame, str]:
     market_code = resolve_market(stock_code, stock_name)
     end_date_formatted = end_date.replace("-", "")
-    reader = EastmoneyQuoteReader()
+    reader = get_quote_reader()
 
     quote = await reader.read_quote_async(
         market=market_code,

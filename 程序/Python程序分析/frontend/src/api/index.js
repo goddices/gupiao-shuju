@@ -131,4 +131,21 @@ export function updateFeeConfig(params) {
   return api.put('/simulation/fee-config', null, { params })
 }
 
+// ====== 数据导出 ======
+
+// 启动全库 SQL 导出
+export function startExport() {
+  return api.post('/export/sql')
+}
+
+// 查询导出进度
+export function getExportProgress(taskId) {
+  return api.get(`/export/progress/${taskId}`)
+}
+
+// 下载导出的 SQL 文件
+export function downloadExport(taskId) {
+  return api.get(`/export/download/${taskId}`, { responseType: 'blob' })
+}
+
 export default api

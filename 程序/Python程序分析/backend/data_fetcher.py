@@ -3,7 +3,7 @@
 import sys
 import os
 import asyncio
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 import pandas as pd
@@ -19,7 +19,7 @@ from emdata import (
     AdjustPriceType,
     PeriodType,
 )
-from models import StockDailyQuote, StockCoreData
+from models import StockCoreData
 
 
 def _guess_market(stock_code: str) -> str:
@@ -56,36 +56,45 @@ def _quote_to_dataframe(quote) -> pd.DataFrame:
 async def _fetch_all_async(stock_code: str, market: str, end_date: str, db_cookies: list = None) -> dict:
     """
     异步并行拉取三种复权类型的行情数据。
-    返回 {"none": DataFrame, "forward": DataFrame, "backward": DataFrame}
+    数据源由 config/datasource.py 配置决定（eastmoney / akshare），不自动切换。
+    返回 {"none": DataFrame, "forward": DataFrame, "backward": DataFrame,
+          "sources": {"none": 数据源, "forward": 数据源, "backward": 数据源}}
     """
-    reader = get_quote_reader(db_cookies=db_cookies)
+    from config.datasource import get_data_source
 
-    async def fetch_one(adjust_type: AdjustPriceType):
-        return await reader.read_quote_async(
-            market=market,
-            stock_code=stock_code,
-            adjust_type=adjust_type,
-            period_type=PeriodType.DAILY,
-            end_date=end_date,
-            limit=5000,
-        )
+    reader = get_quote_reader(db_cookies=db_cookies)
+    ds_name = get_data_source()
+
+    async def fetch_one(adjust_type: AdjustPriceType, key: str):
+        try:
+            quote = await reader.read_quote_async(
+                market=market,
+                stock_code=stock_code,
+                adjust_type=adjust_type,
+                period_type=PeriodType.DAILY,
+                end_date=end_date,
+                limit=5000,
+            )
+            if quote:
+                return _quote_to_dataframe(quote), ds_name
+            print(f"[{stock_code}] {key} 拉取失败（数据源: {ds_name}）")
+            return None, "拉取失败"
+        except Exception as e:
+            print(f"[{stock_code}] {key} 拉取失败（数据源: {ds_name}）: {e}")
+            return None, "拉取失败"
 
     # 三路并行
     results = await asyncio.gather(
-        fetch_one(AdjustPriceType.NONE),
-        fetch_one(AdjustPriceType.FORWARD),
-        fetch_one(AdjustPriceType.BACKWARD),
-        return_exceptions=True,
+        fetch_one(AdjustPriceType.NONE, "不复权"),
+        fetch_one(AdjustPriceType.FORWARD, "前复权"),
+        fetch_one(AdjustPriceType.BACKWARD, "后复权"),
     )
 
     keys = ["none", "forward", "backward"]
-    out = {}
-    for key, result in zip(keys, results):
-        if isinstance(result, Exception):
-            print(f"[{stock_code}] {key} 拉取异常: {result}")
-            out[key] = None
-        else:
-            out[key] = _quote_to_dataframe(result) if result else None
+    out = {"sources": {}}
+    for key, (df, source) in zip(keys, results):
+        out[key] = df
+        out["sources"][key] = source
     return out
 
 
@@ -239,19 +248,21 @@ def fetch_stock_data_full(
             "forward_open", "forward_high", "forward_low", "forward_close",
             "backward_open", "backward_high", "backward_low", "backward_close",
         ]
-        # 只更新 update_rows 中实际存在的列
+        # 只更新 update_rows 中实际存在的列；NaN 用 COALESCE 保留原值，
+        # 避免绑定参数缺失导致 SQL 报错（如复权数据与不复权日期不完全对齐时）
         set_clauses = []
         for col in all_price_cols:
             if col in update_rows.columns:
-                set_clauses.append(f"{col} = :{col}")
+                set_clauses.append(f"{col} = COALESCE(:{col}, {col})")
 
         if set_clauses:
             update_params_list = []
             for idx, row in update_rows.iterrows():
                 params = {"code": stock_code, "date": idx.strftime("%Y-%m-%d")}
                 for col in all_price_cols:
-                    if col in row and pd.notna(row[col]):
-                        params[col] = float(row[col])
+                    if col in row:
+                        v = row[col]
+                        params[col] = None if pd.isna(v) else float(v)
                 update_params_list.append(params)
 
             if update_params_list:
@@ -277,6 +288,17 @@ def fetch_stock_data_full(
     else:
         details.append("无已有记录需要替换")
 
+    # 复权数据同步状态（数据源由配置决定）
+    sources = data.get("sources", {})
+    for key, label in [("forward", "前复权"), ("backward", "后复权")]:
+        col = f"{key}_close"
+        cnt = int(df[col].notna().sum()) if col in df.columns else 0
+        src = sources.get(key, "")
+        if cnt > 0:
+            details.append(f"{label}: {cnt} 条已同步（数据源: {src}）")
+        else:
+            details.append(f"{label}: 拉取失败未同步")
+
     failed = [d for d in details if "失败" in d]
     if failed and new_count == 0 and update_count == 0:
         status = "error"
@@ -284,6 +306,28 @@ def fetch_stock_data_full(
         status = "ok"
     else:
         status = "no_new_data"
+
+    # 9. 更新同步追踪字段（最后同步时间 + 数据源类型）
+    if status in ("ok", "no_new_data"):
+        try:
+            from config.datasource import get_data_source
+            core = db.query(StockCoreData).filter(StockCoreData.stock_code == stock_code).first()
+            now = datetime.now()
+            ds_name = get_data_source()
+            if core:
+                core.last_sync_time = now
+                core.data_source_type = ds_name
+            else:
+                db.add(StockCoreData(
+                    stock_code=stock_code,
+                    stock_name=stock_code,
+                    market=market,
+                    last_sync_time=now,
+                    data_source_type=ds_name,
+                ))
+            db.commit()
+        except Exception as e:
+            print(f"[sync_metadata] 更新 {stock_code} 同步元数据失败: {e}")
 
     return {
         "stock_code": stock_code,

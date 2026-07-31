@@ -1,6 +1,6 @@
 """SQLAlchemy ORM 模型"""
 from sqlalchemy import (
-    Column, Integer, String, Date, BigInteger, Numeric, TIMESTAMP, UniqueConstraint
+    Column, Integer, String, Date, BigInteger, Numeric, TIMESTAMP, DateTime, UniqueConstraint
 )
 from sqlalchemy.orm import declarative_base
 
@@ -95,6 +95,8 @@ class StockCoreData(Base):
     retained_eps = Column(Numeric(24, 4))       # 每股未分配利润
     list_date = Column(String(20))              # 上市日期
     change_pct = Column(Numeric(24, 4))         # 涨跌幅（%）
+    last_sync_time = Column(DateTime, nullable=True, comment="最近一次行情同步时间")
+    data_source_type = Column(String(20), nullable=True, comment="同步时使用的数据源: eastmoney / akshare")
     updated_at = Column(TIMESTAMP, server_default=None)
 
 
