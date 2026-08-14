@@ -24,7 +24,7 @@ class ImportQuotesRequest(BaseModel):
     stock_codes: List[str] = Field(..., min_length=1, description="股票代码列表")
     start_date: str = Field("2006-01-01", description="起始日期 YYYY-MM-DD")
     end_date: Optional[str] = Field(None, description="结束日期 YYYYMMDD，默认今天")
-    data_source: str = Field("eastmoney", description="数据源: eastmoney 或 akshare")
+    data_source: str = Field("tickflow", description="数据源: tickflow / eastmoney / akshare")
     period: str = Field("daily", description="K线周期: daily / weekly / monthly")
 
 
@@ -32,7 +32,7 @@ class ImportBasicInfoRequest(BaseModel):
     """基础信息导入：同步股票列表 + 逐只拉取核心数据"""
     stock_codes: Optional[List[str]] = Field(None, description="要导入核心数据的股票代码列表；为 None 则只同步全量股票列表")
     sync_stock_list: bool = Field(True, description="是否先同步全市场股票代码列表")
-    data_source: str = Field("eastmoney", description="数据源: eastmoney 或 akshare")
+    data_source: str = Field("tickflow", description="数据源: tickflow / eastmoney / akshare")
 
 
 class ImportResult(BaseModel):
@@ -52,7 +52,7 @@ def import_quotes(req: ImportQuotesRequest):
     """
     批量导入股票行情数据（K线）
 
-    - 支持选择数据源（eastmoney / akshare）
+    - 支持选择数据源（tickflow / eastmoney / akshare）
     - 每只股票依次拉取不复权 + 前复权 + 后复权
     - 已存在的日期会被替换为最新价格
     """

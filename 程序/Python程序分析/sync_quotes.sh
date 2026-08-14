@@ -2,9 +2,10 @@
 # 同步6只默认股票的日K线行情到数据库（不复权 + 前复权 + 后复权）
 # 复权数据写入 forward_* / backward_* 字段；主数据源失败时自动用 AKShare 兜底
 # 用法: bash sync_quotes.sh [数据源]
+#       bash sync_quotes.sh tickflow    # TickFlow
 #       bash sync_quotes.sh eastmoney   # 东方财富
 #       bash sync_quotes.sh akshare     # AKShare
-#       bash sync_quotes.sh             # 默认 akshare
+#       bash sync_quotes.sh             # 默认 tickflow
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"

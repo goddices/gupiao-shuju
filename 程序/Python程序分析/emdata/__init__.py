@@ -2,14 +2,15 @@
 emdata - 股票数据获取模块
 
 支持多种数据源，通过 config/datasource.py 切换:
-    export DATA_SOURCE=eastmoney   # 东方财富 (默认)
+    export DATA_SOURCE=tickflow    # TickFlow (默认)
+    export DATA_SOURCE=eastmoney   # 东方财富
     export DATA_SOURCE=akshare     # AKShare
 
 工厂函数 (推荐使用，自动根据配置选择数据源):
     from emdata import get_quote_reader, get_stock_list_reader, get_core_data_reader
 
 直接导入特定数据源:
-    from emdata import EastmoneyQuoteReader, AKShareQuoteReader
+    from emdata import EastmoneyQuoteReader, AKShareQuoteReader, TickFlowQuoteReader
     from emdata import Market, AdjustPriceType, PeriodType
 """
 
@@ -25,6 +26,7 @@ from emdata.akshare_reader import (
     AKShareStockListReader,
     AKShareCoreDataReader,
 )
+from emdata.tickflow_reader import TickFlowQuoteReader
 
 
 # ============================================================
@@ -36,6 +38,7 @@ def get_quote_reader(*args, **kwargs):
     获取行情读取器实例
 
     根据 config.datasource.DATA_SOURCE 自动选择:
+        - "tickflow"  → TickFlowQuoteReader
         - "eastmoney" → EastmoneyQuoteReader
         - "akshare"   → AKShareQuoteReader
 
@@ -45,6 +48,8 @@ def get_quote_reader(*args, **kwargs):
     """
     from config.datasource import get_data_source
     ds = get_data_source()
+    if ds == "tickflow":
+        return TickFlowQuoteReader(*args, **kwargs)
     if ds == "akshare":
         return AKShareQuoteReader(*args, **kwargs)
     return EastmoneyQuoteReader(*args, **kwargs)
@@ -62,6 +67,7 @@ def get_stock_list_reader(*args, **kwargs):
     ds = get_data_source()
     if ds == "akshare":
         return AKShareStockListReader(*args, **kwargs)
+    # tickflow / eastmoney 均使用东方财富列表接口（TickFlow 暂不提供全量列表）
     return EastmoneyStockListReader(*args, **kwargs)
 
 
@@ -77,6 +83,7 @@ def get_core_data_reader(*args, **kwargs):
     ds = get_data_source()
     if ds == "akshare":
         return AKShareCoreDataReader(*args, **kwargs)
+    # tickflow / eastmoney 均使用东方财富核心数据接口（TickFlow 暂不覆盖）
     return EastmoneyCurrentCoreDataReader(*args, **kwargs)
 
 
@@ -97,6 +104,8 @@ __all__ = [
     "AKShareQuoteReader",
     "AKShareStockListReader",
     "AKShareCoreDataReader",
+    # TickFlow 读取器
+    "TickFlowQuoteReader",
     # 工厂函数
     "get_quote_reader",
     "get_stock_list_reader",
