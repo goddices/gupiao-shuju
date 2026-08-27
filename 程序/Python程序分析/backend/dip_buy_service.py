@@ -67,7 +67,7 @@ def run_dip_buy(
         for r in div_rows
     ]
 
-    # 2. 当日跌幅分批策略：不复权日线（含最低价）
+    # 2. 当日跌幅分批策略：不复权日线（含最低价）+ 前复权收盘价（成本前复权口径）
     if strategy == "daily_drop":
         quote_rows = (
             db.query(StockDailyQuote.trade_date, StockDailyQuote.low_price,
@@ -81,6 +81,18 @@ def run_dip_buy(
              "close_price": float(r.close_price)}
             for r in quote_rows
         ]
+        forward_rows = (
+            db.query(StockDailyQuote.trade_date, StockDailyQuote.forward_close)
+            .filter(StockDailyQuote.stock_code == stock_code)
+            .order_by(StockDailyQuote.trade_date.asc())
+            .all()
+        )
+        forward_quotes = [
+            {"trade_date": r.trade_date, "close_price": float(r.forward_close)}
+            for r in forward_rows if r.forward_close is not None
+        ]
+        if len(forward_quotes) != len(quotes):
+            forward_quotes = None
         return simulate_staged_dip_buy(
             quotes=quotes,
             dividends=dividends,
@@ -92,6 +104,7 @@ def run_dip_buy(
             tax_rate=tax_rate,
             reinvest=reinvest,
             lot_size=lot_size,
+            forward_quotes=forward_quotes,
         )
 
     # 3. drawdown 策略：不复权收盘价 + 前复权收盘价（回撤检测）

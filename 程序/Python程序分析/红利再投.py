@@ -65,6 +65,21 @@ def load_quotes(db, stock_code: str) -> list:
     return [{"trade_date": r.trade_date, "close_price": float(r.close_price)} for r in rows]
 
 
+def load_forward_quotes(db, stock_code: str, n_expected: int) -> list:
+    """读前复权收盘价（成本前复权口径用；不完整则返回 None，回退不复权口径）"""
+    rows = (
+        db.query(StockDailyQuote.trade_date, StockDailyQuote.forward_close)
+        .filter(StockDailyQuote.stock_code == stock_code)
+        .order_by(StockDailyQuote.trade_date.asc())
+        .all()
+    )
+    result = [
+        {"trade_date": r.trade_date, "close_price": float(r.forward_close)}
+        for r in rows if r.forward_close is not None
+    ]
+    return result if len(result) == n_expected and result else None
+
+
 def load_dividends(db, stock_code: str) -> list:
     """读已实施的分红明细"""
     rows = (
@@ -142,7 +157,28 @@ def print_report(summary: dict, events: list, warnings_list: list, stock_name: s
         f"（+{diff / nr['final_asset'] * 100:.2f}%）")
     log(f"   比「纯股价」多赚: {ri['final_asset'] - summary['price_only']['final_asset']:,.2f} 元")
 
-    log("\n4. 分红事件明细:")
+    # 前复权口径：每笔交易成本按当日前复权价折算
+    has_fwd = any(x.get("forward_cost") is not None
+                  for x in (summary["reinvest"], summary["no_reinvest"], summary["price_only"]))
+    if has_fwd:
+        log("\n4. 前复权口径（成本价前复权）:")
+        log("   每笔交易成本按当日前复权价折算（参考前复权K线对应日期），"
+            "分红送转已隐含在复权价格中，现金资产另行列示")
+        for name, s in lines:
+            log(f"   【{name}】前复权成本: {s['forward_cost']:>14,.2f} 元  "
+                f"成本均价: {s['forward_cost_avg']:>8.4f} 元/股  "
+                f"前复权收益率: {s['forward_return_pct']:>8.2f}%")
+        log("\n   每笔交易明细（日期/价格/数量，红利再投线）:")
+        trades = ri["trades"]
+        log(f"   {'交易日期':<12}{'类型':>10}{'成交价':>10}{'数量':>10}{'金额':>14}{'当日前复权价':>14}")
+        for t in trades:
+            fp = f"{t['fwd_price']:>14.4f}" if t.get("fwd_price") is not None else f"{'—':>14}"
+            log(f"   {t['trade_date']:<12}{t['kind']:>10}{t['price']:>10.4f}{t['shares']:>10,}"
+                f"{t['amount']:>14,.2f}{fp}")
+    else:
+        log("\n4. 前复权口径: 未计算（前复权数据缺失或覆盖不全，请先同步前复权行情）")
+
+    log("\n5. 分红事件明细:")
     if events:
         log(f"   {'除息日':<12}{'每10股派息':>10}{'送转(股)':>9}{'到账金额':>13}"
             f"{'再投股数':>10}{'再投金额':>13}{'当日收盘':>10}")
@@ -155,7 +191,7 @@ def print_report(summary: dict, events: list, warnings_list: list, stock_name: s
         log("   （区间内无分红记录）")
 
     if warnings_list:
-        log("\n5. 提示:")
+        log("\n6. 提示:")
         for w in warnings_list:
             log(f"   - {w}")
 
@@ -247,6 +283,12 @@ def main():
         log(f"共 {len(quotes)} 个交易日"
             f"（{quotes[0]['trade_date']} ~ {quotes[-1]['trade_date']}）")
 
+        forward_quotes = load_forward_quotes(db, stock_code, len(quotes))
+        if forward_quotes:
+            log("已加载前复权行情（成本前复权口径可用）")
+        else:
+            log("前复权数据缺失，成本前复权口径不可用（请先同步前复权行情）")
+
         dividends = ensure_dividends(db, stock_code, args.sync, log)
         log(f"分红明细: {len(dividends)} 笔（仅统计已实施分配）")
 
@@ -259,6 +301,7 @@ def main():
             tax_rate=args.tax,
             reinvest=True,
             lot_size=100,
+            forward_quotes=forward_quotes,
         )
 
         if result["status"] != "ok":

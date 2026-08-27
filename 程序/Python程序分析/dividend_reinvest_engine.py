@@ -67,6 +67,7 @@ def simulate_dividend_reinvest(
     tax_rate: float = 0.0,
     reinvest: bool = True,
     lot_size: int = 100,
+    forward_quotes: list = None,
 ) -> dict:
     """
     红利再投模拟
@@ -81,6 +82,8 @@ def simulate_dividend_reinvest(
     :param tax_rate: 分红税率（0~1），长期持有(>1年)免税默认 0
     :param reinvest: True=红利再投；False=分红不投（现金留存）
     :param lot_size: 买入整数倍股数（A股=100）
+    :param forward_quotes: 前复权日线 [{"trade_date", "close_price"}]（升序，覆盖全区间时
+                           启用"前复权口径"收益率：每笔买入成本按当日复权价折算）
     :return: {"status", "summary", "dividend_events", "equity_curve", "warnings"}
     """
     start_d = _to_date(start_date)
@@ -102,6 +105,18 @@ def simulate_dividend_reinvest(
 
     if not rows:
         return {"status": "error", "message": "区间内无行情数据（不复权价格缺失），请先同步行情"}
+
+    # ---------- 1b. 前复权价格映射（成本前复权口径用） ----------
+    fwd_map = {}
+    if forward_quotes:
+        for q in forward_quotes:
+            d = _to_date(q.get("trade_date"))
+            p = _safe_float(q.get("close_price"), default=-1.0)
+            if d is not None and p > 0:
+                fwd_map[d] = p
+    # 前复权数据需覆盖全部交易日，否则该口径不可用
+    fwd_ok = bool(fwd_map) and all(r["trade_date"] in fwd_map for r in rows)
+    fwd_last = fwd_map.get(rows[-1]["trade_date"]) if fwd_ok else None
 
     # ---------- 2. 分红预处理（按除息日索引，同除息日多条取报告期最新） ----------
     div_map = {}
@@ -162,6 +177,18 @@ def simulate_dividend_reinvest(
     total_reinvested = 0.0
     reinvest_count = 0
 
+    # 每笔交易明细（日期/价格/数量），前复权口径成本基于此折算
+    initial_trade = {
+        "trade_date": str(rows[0]["trade_date"]),
+        "kind": "建仓",
+        "price": round(first_close, 4),
+        "shares": buy_shares,
+        "amount": round(buy_shares * first_close, 2),
+    }
+    trades_re = [initial_trade]
+    trades_nr = [initial_trade]
+    trades_po = [initial_trade]
+
     # ---------- 4. 主循环：逐交易日 ----------
     equity_curve = []
     dividend_events = []
@@ -205,6 +232,13 @@ def simulate_dividend_reinvest(
                 shares_re += reinvest_shares
                 total_reinvested += reinvest_amount
                 reinvest_count += 1
+                trades_re.append({
+                    "trade_date": str(d),
+                    "kind": "红利再投",
+                    "price": round(price, 4),
+                    "shares": reinvest_shares,
+                    "amount": round(reinvest_amount, 2),
+                })
 
             dividend_events.append({
                 "ex_dividend_date": str(d),
@@ -235,6 +269,8 @@ def simulate_dividend_reinvest(
         warnings.append("区间内无分红记录（红利再投曲线与纯股价曲线相同）")
     for ex in skipped_ex_dates:
         warnings.append(f"除息日 {ex} 无行情数据（非交易日或行情缺失），该笔分红未计入")
+    if not fwd_ok:
+        warnings.append("前复权数据缺失或覆盖不全，前复权口径收益率未计算（请先同步前复权行情）")
 
     last_close = rows[-1]["close"]
     days = (rows[-1]["trade_date"] - rows[0]["trade_date"]).days
@@ -244,9 +280,10 @@ def simulate_dividend_reinvest(
     nr_assets = [e["no_reinvest_asset"] for e in equity_curve]
     po_assets = [e["price_only_asset"] for e in equity_curve]
 
-    def _build_line(assets, final_shares, final_cash, total_div=0.0, total_reinv=None, reinv_cnt=0):
+    def _build_line(assets, final_shares, final_cash, trades,
+                    total_div=0.0, total_reinv=None, reinv_cnt=0):
         final_asset = round(assets[-1], 2)
-        return {
+        line = {
             "final_asset": final_asset,
             "total_return_pct": round((final_asset - initial_cash) / initial_cash * 100, 2),
             "annual_return_pct": _annualize(final_asset, initial_cash, days),
@@ -254,9 +291,23 @@ def simulate_dividend_reinvest(
             "final_shares": final_shares,
             "final_cash": round(final_cash, 2),
             "total_dividends": round(total_div, 2),
+            "trades": trades,
             **({"total_reinvested": round(total_reinv, 2), "reinvest_count": reinv_cnt}
                if total_reinv is not None else {}),
         }
+        # 前复权口径：每笔交易成本按当日复权价折算（参考前复权K线对应日期的复权价）；
+        # 期末市值 = 各笔买入股数 × 最新复权价（分红送转已隐含在复权价格中，现金资产另行列示）
+        if fwd_ok:
+            for t in trades:
+                t.setdefault("fwd_price", round(fwd_map[_to_date(t["trade_date"])], 4))
+            bought_shares = sum(t["shares"] for t in trades)
+            fwd_cost = sum(t["shares"] * fwd_map[_to_date(t["trade_date"])] for t in trades)
+            fwd_value = bought_shares * fwd_last
+            line["forward_cost"] = round(fwd_cost, 2)
+            line["forward_cost_avg"] = round(fwd_cost / bought_shares, 4) if bought_shares else None
+            line["forward_return_pct"] = (round((fwd_value / fwd_cost - 1) * 100, 2)
+                                          if fwd_cost > 0 else None)
+        return line
 
     summary = {
         "start_date": str(rows[0]["trade_date"]),
@@ -266,10 +317,10 @@ def simulate_dividend_reinvest(
         "last_close": last_close,
         "period_return_pct": round((last_close - first_close) / first_close * 100, 2),
         "dividend_count": len(dividend_events),
-        "reinvest": _build_line(re_assets, shares_re, cash_re,
+        "reinvest": _build_line(re_assets, shares_re, cash_re, trades_re,
                                 total_div_re, total_reinvested, reinvest_count),
-        "no_reinvest": _build_line(nr_assets, shares_nr, cash_nr, total_div_nr),
-        "price_only": _build_line(po_assets, shares_po, cash_po),
+        "no_reinvest": _build_line(nr_assets, shares_nr, cash_nr, trades_nr, total_div_nr),
+        "price_only": _build_line(po_assets, shares_po, cash_po, trades_po),
     }
 
     return {
@@ -290,6 +341,7 @@ def plan_dividend_target(
     reinvest: bool = True,
     reference: str = "last_year",
     lot_size: int = 100,
+    forward_quotes: list = None,
 ) -> dict:
     """
     分红目标测算：要达到目标年分红（如 20 万/年），需要在买入日投入多少钱？
@@ -304,6 +356,7 @@ def plan_dividend_target(
     :param reference: 每股年分红基准 — "last_year"=去年全年(除息日在上一个日历年)；
                       "trailing"=最近12个月
     :param lot_size: A股买入整数倍（100）
+    :param forward_quotes: 前复权日线（透传给内部模拟，启用前复权口径成本）
     :return: {"status", "summary"}，summary 含 reinvest/no_reinvest 两套方案与差额
     """
     # ---------- 1. 行情预处理 ----------
@@ -413,6 +466,7 @@ def plan_dividend_target(
                 tax_rate=tax_rate,
                 reinvest=True,
                 lot_size=lot_size,
+                forward_quotes=forward_quotes,
             )
             if res["status"] != "ok":
                 return 0
@@ -438,6 +492,7 @@ def plan_dividend_target(
             quotes=sim_quotes, dividends=sim_dividends,
             initial_cash=required_amount, tax_rate=tax_rate,
             reinvest=True, lot_size=lot_size,
+            forward_quotes=forward_quotes,
         )
         line = res["summary"]["reinvest"]
         reinvest_plan = {
@@ -596,6 +651,7 @@ def simulate_dip_buy(
         tax_rate=tax_rate,
         reinvest=reinvest,
         lot_size=lot_size,
+        forward_quotes=trigger_quotes,  # 前复权口径（回撤检测同源）
     )
     if res["status"] != "ok":
         return res
@@ -638,6 +694,7 @@ def simulate_staged_dip_buy(
     tax_rate: float = 0.0,
     reinvest: bool = True,
     lot_size: int = 100,
+    forward_quotes: list = None,
 ) -> dict:
     """
     大跌分批买入 + 红利再投（当日跌幅触发）
@@ -690,6 +747,17 @@ def simulate_staged_dip_buy(
         return {"status": "error", "message": f"每笔比例 {buy_ratio}% 无效，必须在 (0, 100] 区间"}
     if dip_pct < 0:
         return {"status": "error", "message": f"当日跌幅阈值 {dip_pct}% 无效，必须 ≥ 0"}
+
+    # ---------- 1b. 前复权价格映射（成本前复权口径用） ----------
+    fwd_map = {}
+    if forward_quotes:
+        for q in forward_quotes:
+            d = _to_date(q.get("trade_date"))
+            p = _safe_float(q.get("close_price"), default=-1.0)
+            if d is not None and p > 0:
+                fwd_map[d] = p
+    fwd_ok = bool(fwd_map) and all(r["trade_date"] in fwd_map for r in rows)
+    fwd_last = fwd_map.get(rows[-1]["trade_date"]) if fwd_ok else None
 
     # ---------- 2. 触发日扫描（最低价较前收盘跌幅 ≥ dip_pct%） ----------
     triggers = []  # [{trade_date, prev_close, low, drop_pct}]
@@ -762,6 +830,11 @@ def simulate_staged_dip_buy(
     cash_exhausted = False
     tranche_too_small_hint = False
 
+    # 每笔交易明细（日期/价格/数量），前复权口径成本基于此折算
+    trades_st = []  # 分批买入线：触发买入 + 红利再投
+    trades_lr = []  # 首触全仓线：首触买入 + 红利再投
+    trades_ln = []  # 首触全仓+分红不投线：首触买入
+
     for r in sim_rows:
         d = r["trade_date"]
         low, close = r["low"], r["close"]
@@ -799,6 +872,13 @@ def simulate_staged_dip_buy(
                     total_reinvested += reinv_amount
                     if reinv_shares > 0:
                         reinvest_count += 1
+                        trades_st.append({
+                            "trade_date": str(d),
+                            "kind": "红利再投",
+                            "price": round(close, 4),
+                            "shares": reinv_shares,
+                            "amount": round(reinv_amount, 2),
+                        })
                     dividend_events.append({
                         "ex_dividend_date": str(d),
                         "report_date": str(dv["report_date"]) if dv.get("report_date") else None,
@@ -814,6 +894,14 @@ def simulate_staged_dip_buy(
                 elif tag == "B":
                     shares_lr, cash_lr = shares, cash
                     total_div_lr += cash_amt
+                    if reinv_shares > 0:
+                        trades_lr.append({
+                            "trade_date": str(d),
+                            "kind": "红利再投",
+                            "price": round(close, 4),
+                            "shares": reinv_shares,
+                            "amount": round(reinv_amount, 2),
+                        })
                 else:
                     shares_ln, cash_ln = shares, cash
                     total_div_ln += cash_amt
@@ -833,6 +921,13 @@ def simulate_staged_dip_buy(
                         "buy_amount": round(spend, 2),
                         "buy_shares": lots * lot_size,
                     })
+                    trades_st.append({
+                        "trade_date": str(d),
+                        "kind": "触发买入",
+                        "price": round(low, 4),
+                        "shares": lots * lot_size,
+                        "amount": round(spend, 2),
+                    })
                 elif cash_st < low * lot_size:
                     cash_exhausted = True
                     warnings.append(
@@ -848,10 +943,24 @@ def simulate_staged_dip_buy(
             spend = lots * lot_size * low
             cash_lr -= spend
             shares_lr += lots * lot_size
+            trades_lr.append({
+                "trade_date": str(d),
+                "kind": "首触全仓",
+                "price": round(low, 4),
+                "shares": lots * lot_size,
+                "amount": round(spend, 2),
+            })
             lots = int(cash_ln / (low * lot_size))
             spend = lots * lot_size * low
             cash_ln -= spend
             shares_ln += lots * lot_size
+            trades_ln.append({
+                "trade_date": str(d),
+                "kind": "首触全仓",
+                "price": round(low, 4),
+                "shares": lots * lot_size,
+                "amount": round(spend, 2),
+            })
 
         # c) 每日权益曲线（按收盘价计市值）
         equity_curve.append({
@@ -870,15 +979,18 @@ def simulate_staged_dip_buy(
 
     if not dividend_events:
         warnings.append("买入后无分红记录（红利再投曲线与分红不投曲线相同）")
+    if not fwd_ok:
+        warnings.append("前复权数据缺失或覆盖不全，前复权口径收益率未计算（请先同步前复权行情）")
 
     # ---------- 5. 汇总 ----------
     last_close = sim_rows[-1]["close"]
     first_close = sim_rows[0]["close"]
     days = (sim_rows[-1]["trade_date"] - sim_rows[0]["trade_date"]).days
 
-    def _build_line(assets, final_shares, final_cash, total_div=0.0, total_reinv=None, reinv_cnt=0):
+    def _build_line(assets, final_shares, final_cash, trades,
+                    total_div=0.0, total_reinv=None, reinv_cnt=0):
         final_asset = round(assets[-1], 2)
-        return {
+        line = {
             "final_asset": final_asset,
             "total_return_pct": round((final_asset - total_position) / total_position * 100, 2),
             "annual_return_pct": _annualize(final_asset, total_position, days),
@@ -886,9 +998,22 @@ def simulate_staged_dip_buy(
             "final_shares": final_shares,
             "final_cash": round(final_cash, 2),
             "total_dividends": round(total_div, 2),
+            "trades": trades,
             **({"total_reinvested": round(total_reinv, 2), "reinvest_count": reinv_cnt}
                if total_reinv is not None else {}),
         }
+        # 前复权口径：每笔交易成本按当日复权价折算（分红送转已隐含在复权价格中，现金资产另行列示）
+        if fwd_ok:
+            for t in trades:
+                t.setdefault("fwd_price", round(fwd_map[_to_date(t["trade_date"])], 4))
+            bought_shares = sum(t["shares"] for t in trades)
+            fwd_cost = sum(t["shares"] * fwd_map[_to_date(t["trade_date"])] for t in trades)
+            fwd_value = bought_shares * fwd_last
+            line["forward_cost"] = round(fwd_cost, 2)
+            line["forward_cost_avg"] = round(fwd_cost / bought_shares, 4) if bought_shares else None
+            line["forward_return_pct"] = (round((fwd_value / fwd_cost - 1) * 100, 2)
+                                          if fwd_cost > 0 else None)
+        return line
 
     st_assets = [e["staged_asset"] for e in equity_curve]
     lr_assets = [e["lump_re_asset"] for e in equity_curve]
@@ -908,10 +1033,10 @@ def simulate_staged_dip_buy(
         "leftover_cash": round(cash_st, 2),
         "tranche": round(tranche, 2),
         "dividend_count": len(dividend_events),
-        "staged_reinvest": _build_line(st_assets, shares_st, cash_st,
+        "staged_reinvest": _build_line(st_assets, shares_st, cash_st, trades_st,
                                        total_div_st, total_reinvested, reinvest_count),
-        "lump_reinvest": _build_line(lr_assets, shares_lr, cash_lr, total_div_lr),
-        "lump_no_reinvest": _build_line(ln_assets, shares_ln, cash_ln, total_div_ln),
+        "lump_reinvest": _build_line(lr_assets, shares_lr, cash_lr, trades_lr, total_div_lr),
+        "lump_no_reinvest": _build_line(ln_assets, shares_ln, cash_ln, trades_ln, total_div_ln),
     }
 
     return {

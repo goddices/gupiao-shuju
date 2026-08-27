@@ -159,8 +159,29 @@ def print_report(result: dict, stock_name: str, stock_code: str, log):
     log(f"   红利再投比「分红不投」多赚: {diff:,.2f} 元（+{diff / nr['final_asset'] * 100:.2f}%）")
     log(f"   比「纯股价」多赚: {ri['final_asset'] - s['price_only']['final_asset']:,.2f} 元")
 
+    # 前复权口径：每笔交易成本按当日前复权价折算
+    has_fwd = any(x.get("forward_cost") is not None
+                  for x in (s["reinvest"], s["no_reinvest"], s["price_only"]))
+    if has_fwd:
+        log("\n6. 前复权口径（成本价前复权）:")
+        log("   每笔交易成本按当日前复权价折算（参考前复权K线对应日期），"
+            "分红送转已隐含在复权价格中，现金资产另行列示")
+        for name, x in lines:
+            log(f"   【{name}】前复权成本: {x['forward_cost']:>14,.2f} 元  "
+                f"成本均价: {x['forward_cost_avg']:>8.4f} 元/股  "
+                f"前复权收益率: {x['forward_return_pct']:>8.2f}%")
+        log("\n   每笔交易明细（日期/价格/数量，红利再投线）:")
+        trades = ri["trades"]
+        log(f"   {'交易日期':<12}{'类型':>10}{'成交价':>10}{'数量':>10}{'金额':>14}{'当日前复权价':>14}")
+        for t in trades:
+            fp = f"{t['fwd_price']:>14.4f}" if t.get("fwd_price") is not None else f"{'—':>14}"
+            log(f"   {t['trade_date']:<12}{t['kind']:>10}{t['price']:>10.4f}{t['shares']:>10,}"
+                f"{t['amount']:>14,.2f}{fp}")
+    else:
+        log("\n6. 前复权口径: 未计算（前复权数据缺失或覆盖不全，请先同步前复权行情）")
+
     events = result["dividend_events"]
-    log("\n6. 分红事件明细:")
+    log("\n7. 分红事件明细:")
     if events:
         log(f"   {'除息日':<12}{'每10股派息':>10}{'送转(股)':>9}{'到账金额':>13}"
             f"{'再投股数':>10}{'再投金额':>13}{'当日收盘':>10}")
@@ -173,7 +194,7 @@ def print_report(result: dict, stock_name: str, stock_code: str, log):
         log("   （买入后无分红记录）")
 
     if result["warnings"]:
-        log("\n7. 提示:")
+        log("\n8. 提示:")
         for w in result["warnings"]:
             log(f"   - {w}")
 

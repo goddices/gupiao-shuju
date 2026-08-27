@@ -83,6 +83,21 @@ def main():
     )
     print(f"数据范围：{df['date'].min()} 至 {df['date'].max()}")
 
+    # 前复权日线（成本前复权口径：每笔交易按当日前复权价折算）
+    quote_fwd = reader.read_quote(
+        market=Market.SHANGHAI,
+        stock_code="601857",
+        adjust_type=AdjustPriceType.FORWARD,
+        period_type=PeriodType.DAILY,
+        limit=5000,
+    )
+    fwd_map = {}
+    if quote_fwd and quote_fwd.quote_lines:
+        for q in quote_fwd.quote_lines:
+            fwd_map[q.trade_date.date()] = float(q.close)
+    if fwd_map:
+        print(f"前复权数据范围：{min(fwd_map)} 至 {max(fwd_map)}")
+
     # 3. 初始买入（2010-01-01后首个交易日）
     start_date = datetime(2010, 1, 1).date()
     first_row = df[df["date"] >= start_date].iloc[0]
@@ -91,6 +106,11 @@ def main():
     cash = 1_000_000
     shares = int(cash // buy_price)
     cash -= shares * buy_price
+    # 每笔交易明细（日期/价格/数量），前复权口径成本基于此折算
+    trades = [
+        {"date": buy_date, "kind": "建仓", "price": buy_price,
+         "shares": shares, "amount": shares * buy_price}
+    ]
     print(
         f"初始买入：{buy_date}，价格 {buy_price:.2f}，持股 {shares} 股，剩余现金 {cash:.2f}"
     )
@@ -122,6 +142,8 @@ def main():
             if buy_qty > 0:
                 shares += buy_qty
                 cash -= buy_qty * cur_price
+                trades.append({"date": cur_date, "kind": "红利再投", "price": cur_price,
+                               "shares": buy_qty, "amount": buy_qty * cur_price})
                 print(
                     f"分红再投：{cur_date}，每股 {div_per_share:.4f}，得 {div_cash:.2f} 元，"
                     f"以 {cur_price:.2f} 买入 {buy_qty} 股，余现金 {cash:.2f}"
@@ -147,7 +169,29 @@ def main():
     print(f"现金余额：{cash:.2f} 元  总市值：{final_value:,.2f} 元")
     print(f"累计分红（已再投）：{total_dividend:,.2f} 元")
     print(f"总收益率：{total_return:.2f}%  年化收益率：{annual_return:.2f}%")
-    print(f"持仓成本：{1_000_000 / shares:.2f} 元/股")
+    print(f"持仓成本（不复权）：{1_000_000 / shares:.2f} 元/股")
+
+    # 前复权口径：每笔交易成本按当日前复权价折算（参考前复权K线对应日期），
+    # 期末市值 = 买入股数合计 × 最新前复权价（分红送转已隐含在复权价格中，现金另行列示）
+    bought_shares = sum(t["shares"] for t in trades)
+    fwd_ok = (bought_shares > 0 and all(t["date"] in fwd_map for t in trades)
+              and last_date in fwd_map)
+    if fwd_ok:
+        fwd_cost = sum(t["shares"] * fwd_map[t["date"]] for t in trades)
+        fwd_cost_avg = fwd_cost / bought_shares
+        fwd_value = bought_shares * fwd_map[last_date]
+        fwd_return = (fwd_value / fwd_cost - 1) * 100
+        print("\n---------- 前复权口径（成本价前复权） ----------")
+        print(f"前复权成本合计：{fwd_cost:,.2f} 元  成本均价：{fwd_cost_avg:.4f} 元/股")
+        print(f"最新前复权价：{fwd_map[last_date]:.4f} 元  前复权市值：{fwd_value:,.2f} 元")
+        print(f"前复权收益率：{fwd_return:.2f}%")
+        print("\n每笔交易明细（日期/价格/数量 + 当日前复权价）:")
+        print(f"  {'交易日期':<12}{'类型':>10}{'成交价(不复权)':>14}{'数量':>10}{'金额':>14}{'当日前复权价':>14}")
+        for t in trades:
+            print(f"  {str(t['date']):<12}{t['kind']:>10}{t['price']:>14.2f}{t['shares']:>10,}"
+                  f"{t['amount']:>14,.2f}{fwd_map[t['date']]:>14.4f}")
+    else:
+        print("\n前复权口径：未计算（前复权数据缺失或覆盖不全）")
 
 
 if __name__ == "__main__":

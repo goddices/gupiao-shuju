@@ -127,6 +127,20 @@
                     <span class="mini-value up">{{ fmtMoney(line.data.total_reinvested) }}</span>
                   </div>
                 </a-col>
+                <a-col :span="24" v-if="line.data.forward_cost != null">
+                  <div class="mini-item">
+                    <span class="mini-label">前复权口径收益率（成本价前复权）</span>
+                    <span :class="['mini-value', line.data.forward_return_pct >= 0 ? 'up' : 'down']">
+                      {{ line.data.forward_return_pct.toFixed(2) }}%
+                    </span>
+                  </div>
+                </a-col>
+                <a-col :span="24" v-if="line.data.forward_cost != null">
+                  <div class="mini-item">
+                    <span class="mini-label">前复权成本 / 成本均价</span>
+                    <span class="mini-value">{{ fmtMoney(line.data.forward_cost) }} 元 / {{ line.data.forward_cost_avg.toFixed(4) }} 元/股</span>
+                  </div>
+                </a-col>
               </a-row>
             </a-card>
           </a-col>
@@ -145,6 +159,31 @@
         <!-- 权益曲线图 -->
         <a-card title="📈 权益曲线对比（不复权价格）" size="small" style="margin-bottom: 16px">
           <div ref="chartRef" class="chart-container"></div>
+        </a-card>
+
+        <!-- 每笔交易明细（前复权成本口径） -->
+        <a-card
+          title="📒 每笔交易明细（红利再投线：日期/价格/数量 + 当日前复权价）"
+          size="small"
+          style="margin-bottom: 16px"
+          v-if="tradeList.length"
+        >
+          <a-table
+            :columns="tradeColumns"
+            :data-source="tradeList"
+            :pagination="{ pageSize: 10, showTotal: t => `共 ${t} 笔` }"
+            size="small"
+            row-key="index"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'price'">{{ record.price.toFixed(4) }}</template>
+              <template v-if="column.key === 'shares'">{{ record.shares.toLocaleString() }}</template>
+              <template v-if="column.key === 'amount'">{{ fmtMoney(record.amount) }}</template>
+              <template v-if="column.key === 'fwd_price'">
+                {{ record.fwd_price != null ? record.fwd_price.toFixed(4) : '—' }}
+              </template>
+            </template>
+          </a-table>
         </a-card>
 
         <!-- 分红事件明细 -->
@@ -242,6 +281,22 @@ const strategyCards = computed(() => {
     { key: 'price_only', title: '⚪ 纯股价（忽略分红）', data: s.price_only },
   ]
 })
+
+// ---- 每笔交易明细（前复权成本口径） ----
+const tradeList = computed(() => {
+  const trades = result.value?.summary?.reinvest?.trades
+  if (!trades?.length) return []
+  return trades.map((t, i) => ({ ...t, index: i }))
+})
+
+const tradeColumns = [
+  { title: '交易日期', dataIndex: 'trade_date', key: 'trade_date', width: 110 },
+  { title: '类型', dataIndex: 'kind', key: 'kind', width: 100 },
+  { title: '成交价(不复权)', dataIndex: 'price', key: 'price', width: 110 },
+  { title: '数量', dataIndex: 'shares', key: 'shares', width: 100 },
+  { title: '金额', dataIndex: 'amount', key: 'amount', width: 130 },
+  { title: '当日前复权价', dataIndex: 'fwd_price', key: 'fwd_price', width: 110 },
+]
 
 const conclusion = computed(() => {
   if (!result.value) return { isWin: false, title: '', subTitle: '' }

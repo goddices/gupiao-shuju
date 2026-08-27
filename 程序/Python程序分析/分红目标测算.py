@@ -65,6 +65,21 @@ def load_quotes(db, stock_code: str) -> list:
     return [{"trade_date": r.trade_date, "close_price": float(r.close_price)} for r in rows]
 
 
+def load_forward_quotes(db, stock_code: str, n_expected: int) -> list:
+    """读前复权收盘价（成本前复权口径用；不完整则返回 None）"""
+    rows = (
+        db.query(StockDailyQuote.trade_date, StockDailyQuote.forward_close)
+        .filter(StockDailyQuote.stock_code == stock_code)
+        .order_by(StockDailyQuote.trade_date.asc())
+        .all()
+    )
+    result = [
+        {"trade_date": r.trade_date, "close_price": float(r.forward_close)}
+        for r in rows if r.forward_close is not None
+    ]
+    return result if len(result) == n_expected and result else None
+
+
 def load_dividends(db, stock_code: str) -> list:
     """读已实施的分红明细"""
     rows = (
@@ -229,6 +244,8 @@ def main():
             return
         log(f"共 {len(quotes)} 个交易日（{quotes[0]['trade_date']} ~ {quotes[-1]['trade_date']}）")
 
+        forward_quotes = load_forward_quotes(db, stock_code, len(quotes))
+
         dividends = ensure_dividends(db, stock_code, args.sync, log)
         log(f"分红明细: {len(dividends)} 笔（仅统计已实施分配）")
 
@@ -241,6 +258,7 @@ def main():
             reinvest=True,
             reference=args.reference,
             lot_size=100,
+            forward_quotes=forward_quotes,
         )
 
         if result["status"] != "ok":

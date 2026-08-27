@@ -46,6 +46,20 @@ def run_dividend_reinvest(
         for r in quote_rows
     ]
 
+    # 1b. 前复权收盘价（成本前复权口径；需覆盖全部交易日才可用）
+    forward_rows = (
+        db.query(StockDailyQuote.trade_date, StockDailyQuote.forward_close)
+        .filter(StockDailyQuote.stock_code == stock_code)
+        .order_by(StockDailyQuote.trade_date.asc())
+        .all()
+    )
+    forward_quotes = [
+        {"trade_date": r.trade_date, "close_price": float(r.forward_close)}
+        for r in forward_rows if r.forward_close is not None
+    ]
+    if len(forward_quotes) != len(quotes):
+        forward_quotes = None
+
     # 2. 分红明细（仅已实施分配）
     div_rows = (
         db.query(StockDividendDetail)
@@ -76,4 +90,5 @@ def run_dividend_reinvest(
         tax_rate=tax_rate,
         reinvest=reinvest,
         lot_size=lot_size,
+        forward_quotes=forward_quotes,
     )

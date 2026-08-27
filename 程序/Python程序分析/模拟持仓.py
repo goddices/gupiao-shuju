@@ -38,6 +38,7 @@ class StrategyResult:
     final_value: float
     return_pct: float
     max_drawdown_pct: float
+    cost_avg: float  # 前复权成本均价（行情为前复权口径，成本价即前复权口径）
 
 
 def resolve_market(stock_code: str, stock_name: str = "") -> str:
@@ -103,6 +104,14 @@ def calc_max_drawdown(equity_curve: List[float]) -> float:
     return max_dd
 
 
+def calc_cost_avg(trades: List[Trade]) -> float:
+    """前复权成本均价 = 各笔买入金额合计 / 买入股数合计（行情为前复权口径）"""
+    buys = [t for t in trades if t.action == "买入"]
+    total_amount = sum(t.amount for t in buys)
+    total_shares = sum(t.shares for t in buys)
+    return total_amount / total_shares if total_shares else 0.0
+
+
 def simulate_buy_and_hold(df: pd.DataFrame, initial_capital: float) -> StrategyResult:
     buy_price = df.iloc[0]["close"]
     shares = int(initial_capital / buy_price / 100) * 100
@@ -130,6 +139,7 @@ def simulate_buy_and_hold(df: pd.DataFrame, initial_capital: float) -> StrategyR
         final_value=final_value,
         return_pct=(final_value - initial_capital) / initial_capital * 100,
         max_drawdown_pct=calc_max_drawdown(equity),
+        cost_avg=calc_cost_avg(trades),
     )
 
 
@@ -186,6 +196,7 @@ def simulate_optimal_trade(df: pd.DataFrame, initial_capital: float) -> Strategy
         final_value=final_value,
         return_pct=(final_value - initial_capital) / initial_capital * 100,
         max_drawdown_pct=calc_max_drawdown(equity),
+        cost_avg=calc_cost_avg(trades),
     )
 
 
@@ -265,6 +276,7 @@ def simulate_ma_crossover(
         final_value=final_value,
         return_pct=(final_value - initial_capital) / initial_capital * 100,
         max_drawdown_pct=calc_max_drawdown(equity),
+        cost_avg=calc_cost_avg(trades),
     )
 
 
@@ -332,6 +344,7 @@ def print_report(summary: dict, saver=None):
     log("=" * 70)
 
     log("\n1. 区间行情概览:")
+    log(f"   行情口径: 前复权（分红送转已还原，成本价与收益率均为前复权口径）")
     log(f"   交易日数: {summary['trading_days']} 天")
     log(f"   期初收盘: {summary['start_close']:.2f}")
     log(f"   期末收盘: {summary['end_close']:.2f}")
@@ -353,6 +366,8 @@ def print_report(summary: dict, saver=None):
         log(f"   最终资产: {strategy.final_value:,.2f} 元")
         log(f"   收益率: {strategy.return_pct:.2f}%")
         log(f"   最大回撤: {strategy.max_drawdown_pct:.2f}%")
+        log(f"   前复权成本均价: {strategy.cost_avg:.4f} 元/股"
+            f"（各笔买入金额合计 / 股数合计，行情为前复权口径）")
         if strategy.trades:
             log("   交易明细:")
             for trade in strategy.trades:
