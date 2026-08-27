@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import StockDailyQuote, StockDividendEvent, StockInfo, StockCoreData, StockCookie, StockWeekdayStats
+from models import StockDailyQuote, StockDividendEvent, StockDividendDetail, StockInfo, StockCoreData, StockCookie, StockWeekdayStats
 from emdata import get_stock_list_reader, SEED_COOKIE
 from config.datasource import is_eastmoney
 from database import SessionLocal
@@ -388,6 +388,118 @@ def sync_stock_core_data(db: Session, stock_code: str) -> dict:
     db.commit()
 
     return {"status": "ok", "message": "核心数据同步成功", "data": data}
+
+
+def sync_stock_dividends(db: Session, stock_code: str) -> dict:
+    """
+    从东方财富拉取个股分红明细并保存到 stock_dividend_detail 表。
+
+    全部记录保存（含"董事会预案"等未实施进度），模拟时按 assign_progress 过滤。
+    返回 {"status": str, "message": str, "total": int}
+    """
+    from emdata import get_dividend_reader, to_secucode
+
+    reader = get_dividend_reader(db_cookies=get_fallback_cookies(db))
+
+    async def _fetch():
+        return await reader.fetch_all_dividends(
+            to_secucode(stock_code), get_fallback_cookies(db)
+        )
+
+    try:
+        records = asyncio.run(_fetch())
+    except Exception as e:
+        return {"status": "error", "message": f"网络请求失败: {str(e)}", "total": 0}
+
+    if not records:
+        return {"status": "error", "message": "获取分红数据为空", "total": 0}
+
+    # 保存成功的 Cookie 到 DB
+    if hasattr(reader, 'last_used_cookie') and reader.last_used_cookie:
+        save_working_cookie(db, reader.last_used_cookie)
+
+    new_count = 0
+    update_count = 0
+    for r in records:
+        d = r.to_db_dict()
+        existing = (
+            db.query(StockDividendDetail)
+            .filter(
+                StockDividendDetail.stock_code == d["stock_code"],
+                StockDividendDetail.ex_dividend_date == d["ex_dividend_date"],
+            )
+            .first()
+        )
+        if existing:
+            # 仅覆盖非空值，避免用 None 抹掉已有数据
+            for key, val in d.items():
+                if val is not None:
+                    setattr(existing, key, val)
+            update_count += 1
+        else:
+            db.add(StockDividendDetail(**d))
+            new_count += 1
+
+    db.commit()
+    return {
+        "status": "ok",
+        "message": f"同步完成: 新增 {new_count} 条, 更新 {update_count} 条",
+        "total": new_count + update_count,
+    }
+
+
+def get_stock_dividend_details(
+    db: Session,
+    stock_code: str,
+    page: int = 1,
+    page_size: int = 100,
+) -> dict:
+    """分页获取个股分红明细（stock_dividend_detail 表，按除权除息日倒序）"""
+    query = db.query(StockDividendDetail).filter(
+        StockDividendDetail.stock_code == stock_code
+    )
+    total = query.count()
+
+    rows = (
+        query
+        .order_by(StockDividendDetail.ex_dividend_date.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    def _f(val):
+        return float(val) if val is not None else None
+
+    return {
+        "stock_code": stock_code,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "data": [
+            {
+                "id": r.id,
+                "stock_code": r.stock_code,
+                "stock_name": r.stock_name,
+                "report_date": str(r.report_date) if r.report_date else None,
+                "record_date": str(r.record_date) if r.record_date else None,
+                "ex_dividend_date": str(r.ex_dividend_date) if r.ex_dividend_date else None,
+                "notice_date": str(r.notice_date) if r.notice_date else None,
+                "plan_notice_date": str(r.plan_notice_date) if r.plan_notice_date else None,
+                "assign_progress": r.assign_progress,
+                "impl_plan_profile": r.impl_plan_profile,
+                "cash_per_10": _f(r.cash_per_10),
+                "bonus_per_10": _f(r.bonus_per_10),
+                "conversion_per_10": _f(r.conversion_per_10),
+                "basic_eps": _f(r.basic_eps),
+                "bvps": _f(r.bvps),
+                "dividend_ratio": _f(r.dividend_ratio),
+                "total_shares": _f(r.total_shares),
+                "ex_dividend_days": r.ex_dividend_days,
+            }
+            for r in rows
+        ],
+    }
 
 
 def get_latest_trade_date(db: Session, stock_code: str) -> Optional[date]:

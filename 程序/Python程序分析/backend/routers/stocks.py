@@ -27,6 +27,8 @@ from services import (
     sync_stock_list,
     get_stock_core_data,
     sync_stock_core_data,
+    sync_stock_dividends,
+    get_stock_dividend_details,
     compute_weekday_stats,
     get_weekday_analysis,
     ensure_quote_available,
@@ -123,6 +125,26 @@ def stock_dividends(
 ):
     """获取分红事件列表"""
     return get_stock_dividends(db, stock_code, page, page_size)
+
+
+@router.get("/{stock_code}/dividend-details")
+def stock_dividend_details(
+    stock_code: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    """获取个股分红明细列表（东方财富 stock_dividend_detail 表）"""
+    return get_stock_dividend_details(db, stock_code, page, page_size)
+
+
+@router.post("/{stock_code}/fetch-dividends")
+def fetch_stock_dividends(stock_code: str, db: Session = Depends(get_db)):
+    """从东方财富同步个股分红明细并保存到数据库"""
+    result = sync_stock_dividends(db, stock_code)
+    if result["status"] == "error":
+        raise HTTPException(status_code=500, detail=result["message"])
+    return result
 
 
 @router.post("/{stock_code}/compute-weekday-stats")

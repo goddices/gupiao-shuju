@@ -85,6 +85,61 @@ class DividendEventOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DividendDetailOut(BaseModel):
+    """分红明细响应（东方财富 stock_dividend_detail 表）"""
+    id: int
+    stock_code: str
+    stock_name: Optional[str] = None
+    report_date: Optional[date] = None
+    record_date: Optional[date] = None
+    ex_dividend_date: date
+    notice_date: Optional[date] = None
+    plan_notice_date: Optional[date] = None
+    assign_progress: Optional[str] = None
+    impl_plan_profile: Optional[str] = None
+    cash_per_10: Optional[float] = None
+    bonus_per_10: Optional[float] = None
+    conversion_per_10: Optional[float] = None
+    basic_eps: Optional[float] = None
+    bvps: Optional[float] = None
+    dividend_ratio: Optional[float] = None
+    total_shares: Optional[float] = None
+    ex_dividend_days: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+
+class DividendSimulateRequest(BaseModel):
+    """红利再投模拟请求"""
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    initial_cash: float = 100000
+    tax_rate: float = 0.0
+    reinvest: bool = True
+
+
+class DividendTargetRequest(BaseModel):
+    """分红目标测算请求"""
+    buy_date: date
+    target_annual_dividend: float = 200000
+    tax_rate: float = 0.0
+    reinvest: bool = True
+    reference: str = "last_year"  # last_year=去年全年 / trailing=最近12个月
+
+
+class DipBuyRequest(BaseModel):
+    """大跌买入 + 红利再投模拟请求"""
+    strategy: str = "drawdown"  # drawdown=高点回撤一次性买入；daily_drop=当日大跌分批买入
+    dip_pct: float = 20.0  # drawdown: 从高点回撤 %；daily_drop: 当日盘中跌幅 %
+    buy_amount: float = 10.0  # drawdown 模式买入金额（万元）
+    total_position: float = 100.0  # daily_drop 模式总仓位（万元）
+    buy_ratio: float = 5.0  # daily_drop 模式每笔买入占总仓位比例（%）
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    tax_rate: float = 0.0
+    reinvest: bool = True
+
+
 # ---- 数据拉取 ----
 class FetchRequest(BaseModel):
     """触发数据拉取请求"""

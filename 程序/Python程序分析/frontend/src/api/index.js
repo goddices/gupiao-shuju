@@ -73,6 +73,37 @@ export function getHolidayAnalysis(code) {
   return api.get('/holiday/analysis', { params: { stock_code: code } })
 }
 
+// ====== 红利再投 ======
+
+// 分红明细列表
+export function getDividendDetails(code, params = {}) {
+  return api.get(`/dividend-reinvest/${code}/dividends`, { params })
+}
+
+// 同步分红明细（从东方财富拉取入库）
+export function syncDividendReinvest(code) {
+  return api.post(`/dividend-reinvest/${code}/sync`)
+}
+
+// 红利再投模拟
+export function simulateDividendReinvest(code, payload) {
+  return api.post(`/dividend-reinvest/${code}/simulate`, payload)
+}
+
+// ====== 分红目标测算 ======
+
+// 目标年分红测算：买入日 + 目标年分红 → 所需买入资金
+export function planDividendTarget(code, payload) {
+  return api.post(`/dividend-target/${code}/plan`, payload)
+}
+
+// ====== 大跌买入 + 红利再投 ======
+
+// 回撤 x% 买入 y 万 + 红利再投模拟
+export function simulateDipBuy(code, payload) {
+  return api.post(`/dip-buy/${code}/simulate`, payload)
+}
+
 // ====== 数据导入 ======
 
 // 导入行情数据

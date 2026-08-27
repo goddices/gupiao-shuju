@@ -7,6 +7,9 @@ import WeekdayAnalysis from '../views/WeekdayAnalysis.vue'
 import HolidayAnalysis from '../views/HolidayAnalysis.vue'
 import Simulation from '../views/Simulation.vue'
 import ExportData from '../views/ExportData.vue'
+import DividendReinvest from '../views/DividendReinvest.vue'
+import DividendTarget from '../views/DividendTarget.vue'
+import DipBuy from '../views/DipBuy.vue'
 
 const routes = [
   { path: '/', redirect: '/stocks' },
@@ -17,6 +20,9 @@ const routes = [
   { path: '/simulation', name: 'Simulation', component: Simulation },
   { path: '/weekday', name: 'WeekdayAnalysis', component: WeekdayAnalysis },
   { path: '/holiday', name: 'HolidayAnalysis', component: HolidayAnalysis },
+  { path: '/dividend-reinvest', name: 'DividendReinvest', component: DividendReinvest },
+  { path: '/dividend-target', name: 'DividendTarget', component: DividendTarget },
+  { path: '/dip-buy', name: 'DipBuy', component: DipBuy },
   { path: '/export', name: 'ExportData', component: ExportData },
 ]
 

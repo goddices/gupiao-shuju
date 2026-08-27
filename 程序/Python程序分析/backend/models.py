@@ -65,6 +65,35 @@ class StockDividendEvent(Base):
     created_at = Column(TIMESTAMP, server_default=None)
 
 
+class StockDividendDetail(Base):
+    """个股分红明细（东方财富 RPT_SHAREBONUS_DET，按 stock_code 关联个股）"""
+    __tablename__ = "stock_dividend_detail"
+    __table_args__ = (
+        UniqueConstraint("stock_code", "ex_dividend_date", name="uq_divdetail_code_exdate"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stock_code = Column(String(20), nullable=False, index=True, comment="股票代码")
+    stock_name = Column(String(100), comment="股票名称")
+    report_date = Column(Date, comment="报告期")
+    record_date = Column(Date, comment="股权登记日")
+    ex_dividend_date = Column(Date, nullable=False, index=True, comment="除权除息日")
+    notice_date = Column(Date, comment="实施公告日")
+    plan_notice_date = Column(Date, comment="预案公告日")
+    assign_progress = Column(String(50), comment="分配进度: 实施分配/股东大会通过/董事会预案")
+    impl_plan_profile = Column(String(200), comment="分配方案摘要, 如 10派2.50元(含税,扣税后2.25元)")
+    cash_per_10 = Column(Numeric(12, 6), default=0, comment="每10股派息(含税,元)")
+    bonus_per_10 = Column(Numeric(12, 6), default=0, comment="每10股送股(股)")
+    conversion_per_10 = Column(Numeric(12, 6), default=0, comment="每10股转增(股)")
+    basic_eps = Column(Numeric(12, 6), comment="每股收益")
+    bvps = Column(Numeric(16, 6), comment="每股净资产")
+    dividend_ratio = Column(Numeric(16, 8), comment="股息率")
+    total_shares = Column(Numeric(24, 0), comment="总股本")
+    ex_dividend_days = Column(Integer, comment="距上次除息天数")
+    created_at = Column(TIMESTAMP, server_default=None)
+    updated_at = Column(TIMESTAMP, server_default=None)
+
+
 class StockCoreData(Base):
     """个股核心数据（PE、PB、ROE、市值、营收等）"""
     __tablename__ = "stock_core_data"

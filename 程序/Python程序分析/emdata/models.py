@@ -69,6 +69,57 @@ class QuoteMappers:
 
 
 @dataclass
+class DividendRecord:
+    """分红明细记录（东方财富 RPT_SHAREBONUS_DET）"""
+
+    stock_code: str
+    stock_name: Optional[str] = None
+    report_date: Optional[str] = None          # 报告期 2025-12-31
+    record_date: Optional[str] = None          # 股权登记日
+    ex_dividend_date: Optional[str] = None     # 除权除息日
+    notice_date: Optional[str] = None          # 实施公告日
+    plan_notice_date: Optional[str] = None     # 预案公告日
+    assign_progress: Optional[str] = None      # 分配进度: 实施分配 / 股东大会通过 / 董事会预案
+    impl_plan_profile: Optional[str] = None    # 方案摘要 "10派2.50元(含税,扣税后2.25元)"
+    cash_per_10: Optional[float] = None        # 每10股派息(含税, PRETAX_BONUS_RMB)
+    bonus_per_10: Optional[float] = None       # 每10股送股(BONUS_RATIO)
+    conversion_per_10: Optional[float] = None  # 每10股转增(IT_RATIO)
+    basic_eps: Optional[float] = None          # 每股收益
+    bvps: Optional[float] = None               # 每股净资产
+    dividend_ratio: Optional[float] = None     # 股息率
+    total_shares: Optional[float] = None       # 总股本
+    ex_dividend_days: Optional[int] = None     # 距上次除息天数
+
+    def to_db_dict(self) -> dict:
+        """转为数据库实体字段 dict（日期字符串可直接写入 Date 列）"""
+        return {
+            "stock_code": self.stock_code,
+            "stock_name": self.stock_name,
+            "report_date": self.report_date,
+            "record_date": self.record_date,
+            "ex_dividend_date": self.ex_dividend_date,
+            "notice_date": self.notice_date,
+            "plan_notice_date": self.plan_notice_date,
+            "assign_progress": self.assign_progress,
+            "impl_plan_profile": self.impl_plan_profile,
+            "cash_per_10": self.cash_per_10,
+            "bonus_per_10": self.bonus_per_10,
+            "conversion_per_10": self.conversion_per_10,
+            "basic_eps": self.basic_eps,
+            "bvps": self.bvps,
+            "dividend_ratio": self.dividend_ratio,
+            "total_shares": self.total_shares,
+            "ex_dividend_days": self.ex_dividend_days,
+        }
+
+
+def to_secucode(stock_code: str) -> str:
+    """股票代码 → 东财 SECUCODE（如 601857 → 601857.SH）"""
+    suffix = "SH" if stock_code.startswith("6") else "SZ"
+    return f"{stock_code}.{suffix}"
+
+
+@dataclass
 class StockInfo:
     """个股核心数据"""
 

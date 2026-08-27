@@ -16,11 +16,12 @@ emdata - 股票数据获取模块
 
 from emdata.config import MAX_RETRIES, RETRY_DELAY_MIN, RETRY_DELAY_MAX, _is_connection_error, SEED_COOKIE
 from emdata.enums import Market, AdjustPriceType, PeriodType
-from emdata.models import StockQuoteLine, StockQuote, QuoteMappers, StockInfo
+from emdata.models import StockQuoteLine, StockQuote, QuoteMappers, StockInfo, DividendRecord, to_secucode
 from emdata.cookie import generate_eastmoney_cookie_str
 from emdata.quote_reader import EastmoneyQuoteReader
 from emdata.stock_list_reader import EastmoneyStockListReader
 from emdata.core_data_reader import EastmoneyCurrentCoreDataReader
+from emdata.dividend_reader import EastmoneyDividendReader
 from emdata.akshare_reader import (
     AKShareQuoteReader,
     AKShareStockListReader,
@@ -87,6 +88,18 @@ def get_core_data_reader(*args, **kwargs):
     return EastmoneyCurrentCoreDataReader(*args, **kwargs)
 
 
+def get_dividend_reader(*args, **kwargs):
+    """
+    获取分红明细读取器实例
+
+    用法:
+        reader = get_dividend_reader()
+        records = await reader.fetch_all_dividends("601857.SH")
+    """
+    # 各数据源均使用东方财富 datacenter 分红接口（与 core_data 先例一致）
+    return EastmoneyDividendReader(*args, **kwargs)
+
+
 __all__ = [
     # 配置常量
     "MAX_RETRIES", "RETRY_DELAY_MIN", "RETRY_DELAY_MAX", "_is_connection_error",
@@ -94,12 +107,14 @@ __all__ = [
     "Market", "AdjustPriceType", "PeriodType",
     # 数据模型
     "StockQuoteLine", "StockQuote", "QuoteMappers", "StockInfo",
+    "DividendRecord", "to_secucode",
     # Cookie 工具
     "generate_eastmoney_cookie_str",
     # 东方财富读取器
     "EastmoneyQuoteReader",
     "EastmoneyStockListReader",
     "EastmoneyCurrentCoreDataReader",
+    "EastmoneyDividendReader",
     # AKShare 读取器
     "AKShareQuoteReader",
     "AKShareStockListReader",
@@ -110,4 +125,5 @@ __all__ = [
     "get_quote_reader",
     "get_stock_list_reader",
     "get_core_data_reader",
+    "get_dividend_reader",
 ]
