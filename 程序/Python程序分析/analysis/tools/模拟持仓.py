@@ -1,6 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+模拟持仓 —— 买入持有/理想买卖/均线策略三策略模拟对比（迁移自旧版独立脚本）
+
+行情为前复权口径（分红送转已还原）。
+入口契约见 analysis.tools 包 docstring。
+"""
 import argparse
 import asyncio
-import os
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,13 +18,19 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-from emdata import (
-    AdjustPriceType,
-    get_quote_reader,
-    Market,
-    PeriodType,
-)
+from emdata import AdjustPriceType
+
+from analysis.chart_utils import setup_chinese_fonts
+from analysis.cli import ask, code_parent, range_parent, today_str
+from analysis.kline import fetch_kline_df
+from analysis.metrics import calc_max_drawdown, total_return_pct
+from analysis.report import print_footer, print_header, print_strategy_block
 from result_saver import reset_saver
+
+setup_chinese_fonts()
+
+ANALYSIS_NAME = "模拟持仓"
+DESCRIPTION = "买入持有/理想买卖/均线策略三策略模拟对比"
 
 
 @dataclass
@@ -39,69 +51,6 @@ class StrategyResult:
     return_pct: float
     max_drawdown_pct: float
     cost_avg: float  # 前复权成本均价（行情为前复权口径，成本价即前复权口径）
-
-
-def resolve_market(stock_code: str, stock_name: str = "") -> str:
-    if stock_code == "000001" and stock_name in ("上证指数", "上证综指", ""):
-        return Market.SHANGHAI
-    return Market.SHANGHAI if stock_code.startswith("6") else Market.SHENGZHEN
-
-
-async def fetch_kline_data(
-    stock_code: str,
-    start_date: str,
-    end_date: str,
-    stock_name: str = "",
-) -> Tuple[pd.DataFrame, str]:
-    market_code = resolve_market(stock_code, stock_name)
-    end_date_formatted = end_date.replace("-", "")
-    reader = get_quote_reader()
-
-    quote = await reader.read_quote_async(
-        market=market_code,
-        stock_code=stock_code,
-        adjust_type=AdjustPriceType.FORWARD,
-        period_type=PeriodType.DAILY,
-        end_date=end_date_formatted,
-        limit=2000,
-    )
-
-    if quote is None or not quote.quote_lines:
-        raise RuntimeError(f"无法获取 {stock_code} 的行情数据")
-
-    rows = [
-        {
-            "date": line.trade_date,
-            "open": line.open,
-            "high": line.high,
-            "low": line.low,
-            "close": line.close,
-            "volume": line.volume,
-        }
-        for line in quote.quote_lines
-    ]
-    df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
-
-    start_dt = pd.to_datetime(start_date)
-    end_dt = pd.to_datetime(end_date)
-    df = df[(df["date"] >= start_dt) & (df["date"] <= end_dt)].reset_index(drop=True)
-
-    if df.empty:
-        raise RuntimeError(f"{start_date} 至 {end_date} 范围内无交易数据")
-
-    return df, quote.stock_name
-
-
-def calc_max_drawdown(equity_curve: List[float]) -> float:
-    if not equity_curve:
-        return 0.0
-    peak = equity_curve[0]
-    max_dd = 0.0
-    for value in equity_curve:
-        peak = max(peak, value)
-        if peak > 0:
-            max_dd = max(max_dd, (peak - value) / peak * 100)
-    return max_dd
 
 
 def calc_cost_avg(trades: List[Trade]) -> float:
@@ -137,7 +86,7 @@ def simulate_buy_and_hold(df: pd.DataFrame, initial_capital: float) -> StrategyR
         name="买入持有",
         trades=trades,
         final_value=final_value,
-        return_pct=(final_value - initial_capital) / initial_capital * 100,
+        return_pct=total_return_pct(initial_capital, final_value),
         max_drawdown_pct=calc_max_drawdown(equity),
         cost_avg=calc_cost_avg(trades),
     )
@@ -194,7 +143,7 @@ def simulate_optimal_trade(df: pd.DataFrame, initial_capital: float) -> Strategy
         name="理想买卖（事后最优）",
         trades=trades,
         final_value=final_value,
-        return_pct=(final_value - initial_capital) / initial_capital * 100,
+        return_pct=total_return_pct(initial_capital, final_value),
         max_drawdown_pct=calc_max_drawdown(equity),
         cost_avg=calc_cost_avg(trades),
     )
@@ -274,7 +223,7 @@ def simulate_ma_crossover(
         name=f"均线策略（MA{short_window}/MA{long_window}）",
         trades=trades,
         final_value=final_value,
-        return_pct=(final_value - initial_capital) / initial_capital * 100,
+        return_pct=total_return_pct(initial_capital, final_value),
         max_drawdown_pct=calc_max_drawdown(equity),
         cost_avg=calc_cost_avg(trades),
     )
@@ -319,7 +268,7 @@ def analyze_period(
         "trading_days": len(df),
         "start_close": start_close,
         "end_close": end_close,
-        "period_return_pct": (end_close - start_close) / start_close * 100,
+        "period_return_pct": total_return_pct(start_close, end_close),
         "high_price": df.iloc[high_idx]["high"],
         "high_date": df.iloc[high_idx]["date"].strftime("%Y-%m-%d"),
         "low_price": df.iloc[low_idx]["low"],
@@ -338,10 +287,10 @@ def analyze_period(
 def print_report(summary: dict, saver=None):
     log = saver.log if saver else print
 
-    log("=" * 70)
-    log(f"           {summary['stock_name']}({summary['stock_code']}) 模拟持仓分析报告")
-    log(f"           分析期间: {summary['start_date']} 至 {summary['end_date']}")
-    log("=" * 70)
+    print_header(log,
+                 f"{summary['stock_name']}({summary['stock_code']}) 模拟持仓分析报告",
+                 width=70, indent=11,
+                 extra=[f"           分析期间: {summary['start_date']} 至 {summary['end_date']}"])
 
     log("\n1. 区间行情概览:")
     log(f"   行情口径: 前复权（分红送转已还原，成本价与收益率均为前复权口径）")
@@ -362,22 +311,20 @@ def print_report(summary: dict, saver=None):
 
     log("\n3. 策略模拟对比:")
     for strategy in summary["strategies"]:
-        log(f"\n   【{strategy.name}】")
-        log(f"   最终资产: {strategy.final_value:,.2f} 元")
-        log(f"   收益率: {strategy.return_pct:.2f}%")
-        log(f"   最大回撤: {strategy.max_drawdown_pct:.2f}%")
-        log(f"   前复权成本均价: {strategy.cost_avg:.4f} 元/股"
-            f"（各笔买入金额合计 / 股数合计，行情为前复权口径）")
-        if strategy.trades:
-            log("   交易明细:")
-            for trade in strategy.trades:
-                log(
-                    f"     {trade.date.strftime('%Y-%m-%d')} {trade.action} "
-                    f"{trade.shares}股 @ {trade.price:.2f} "
-                    f"({trade.amount:,.2f}元) - {trade.reason}"
-                )
-        else:
-            log("   无交易信号")
+        print_strategy_block(
+            log,
+            strategy.name,
+            [
+                ("最终资产", f"{strategy.final_value:,.2f} 元"),
+                ("收益率", f"{strategy.return_pct:.2f}%"),
+                ("最大回撤", f"{strategy.max_drawdown_pct:.2f}%"),
+                ("前复权成本均价", f"{strategy.cost_avg:.4f} 元/股"
+                                  "（各笔买入金额合计 / 股数合计，行情为前复权口径）"),
+            ],
+            trades=[(t.date.strftime('%Y-%m-%d'), t.action, t.shares,
+                     f"{t.price:.2f}", f"{t.amount:,.2f}", t.reason)
+                    for t in strategy.trades] or None,
+        )
 
     best = max(summary["strategies"], key=lambda s: s.return_pct)
     log("\n4. 操作建议:")
@@ -394,7 +341,7 @@ def print_report(summary: dict, saver=None):
     log(f"   整体趋势: {trend}")
     log(f"   策略建议: {advice}")
     log(f"   区间内表现最佳策略: {best.name}（收益率 {best.return_pct:.2f}%）")
-    log("=" * 70)
+    print_footer(log, 70)
 
 
 def plot_analysis(
@@ -405,9 +352,6 @@ def plot_analysis(
     stock_code: str,
     show: bool = True,
 ):
-    plt.rcParams["font.sans-serif"] = ["SimHei", "Arial Unicode MS", "DejaVu Sans"]
-    plt.rcParams["axes.unicode_minus"] = False
-
     data = df.copy()
     data["ma5"] = data["close"].rolling(5).mean()
     data["ma20"] = data["close"].rolling(20).mean()
@@ -494,50 +438,33 @@ def plot_analysis(
         plt.show()
 
 
-def get_user_input():
-    today = datetime.now().strftime("%Y-%m-%d")
+def add_parser(sub):
+    """注册子命令（--code/--start/--end/--capital/--no-chart，与原 argparse 参数一致）"""
+    p = sub.add_parser(ANALYSIS_NAME, help=DESCRIPTION,
+                       parents=[
+                           code_parent(default="600519",
+                                       help_text="股票代码（默认 600519 贵州茅台）"),
+                           range_parent(start_help="起始日期 YYYY-MM-DD（默认：2024-01-01）",
+                                        end_help="结束日期 YYYY-MM-DD（默认：今天）"),
+                       ])
+    p.add_argument("--capital", type=float, default=100000, help="初始资金（默认 100000 元）")
+    p.add_argument("--no-chart", action="store_true",
+                   help="不弹出图形窗口（图片仍会保存到 results 目录）")
+    p.set_defaults(_run=run)
+    return p
+
+
+def interactive_input(saver):
+    """菜单路径的交互输入（欢迎语用 print，与旧脚本一致）"""
     print("欢迎使用模拟持仓分析工具！")
 
-    try:
-        stock_code = input("请输入股票代码（默认：600519）: ").strip() or "600519"
-    except EOFError:
-        stock_code = "600519"
+    stock_code = ask("请输入股票代码（默认：600519）: ", "600519")
+    start_date = ask("请输入起始日期（默认：2024-01-01，格式：YYYY-MM-DD）: ", "2024-01-01")
+    end_date = ask(f"请输入结束日期（默认：{today_str()}，格式：YYYY-MM-DD）: ", today_str())
+    initial_capital = ask("请输入初始资金（默认：100000）: ", 100000.0, float)
 
-    try:
-        start_date = (
-            input("请输入起始日期（默认：2024-01-01，格式：YYYY-MM-DD）: ").strip()
-            or "2024-01-01"
-        )
-    except EOFError:
-        start_date = "2024-01-01"
-
-    try:
-        end_date = (
-            input(f"请输入结束日期（默认：{today}，格式：YYYY-MM-DD）: ").strip()
-            or today
-        )
-    except EOFError:
-        end_date = today
-
-    try:
-        capital_str = input("请输入初始资金（默认：100000）: ").strip() or "100000"
-        initial_capital = float(capital_str)
-    except (EOFError, ValueError):
-        initial_capital = 100000.0
-
-    return stock_code, start_date, end_date, initial_capital
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="模拟持仓分析：输入日期范围和股票代码，分析买卖策略"
-    )
-    parser.add_argument("--code", default=None, help="股票代码")
-    parser.add_argument("--start", default=None, help="起始日期 YYYY-MM-DD")
-    parser.add_argument("--end", default=None, help="结束日期 YYYY-MM-DD")
-    parser.add_argument("--capital", type=float, default=100000, help="初始资金")
-    parser.add_argument("--no-chart", action="store_true", help="不显示图表")
-    return parser.parse_args()
+    return argparse.Namespace(code=stock_code, start=start_date, end=end_date,
+                              capital=initial_capital, no_chart=False)
 
 
 async def run_analysis(
@@ -546,12 +473,17 @@ async def run_analysis(
     end_date: str,
     initial_capital: float = 100000,
     show_chart: bool = True,
+    saver=None,
 ):
-    saver = reset_saver("模拟持仓")
+    if saver is None:
+        saver = reset_saver(ANALYSIS_NAME)
     saver.set_tag(stock_code)
 
     saver.log(f"正在获取 {stock_code} {start_date} 至 {end_date} 的日线数据...")
-    df, stock_name = await fetch_kline_data(stock_code, start_date, end_date)
+    df, stock_name = await fetch_kline_df(
+        stock_code, start_date, end_date,
+        adjust=AdjustPriceType.FORWARD, raise_on_empty=True,
+    )
     saver.log(f"成功获取 {len(df)} 条K线数据（{stock_name}）")
 
     summary, buy_points, sell_points = analyze_period(
@@ -566,24 +498,14 @@ async def run_analysis(
     return summary
 
 
-def main():
-    args = parse_args()
-    if args.code and args.start and args.end:
-        stock_code, start_date, end_date = args.code, args.start, args.end
-        initial_capital = args.capital
-    else:
-        stock_code, start_date, end_date, initial_capital = get_user_input()
-
-    asyncio.run(
-        run_analysis(
-            stock_code=stock_code,
-            start_date=start_date,
-            end_date=end_date,
-            initial_capital=initial_capital,
-            show_chart=not args.no_chart,
-        )
-    )
-
-
-if __name__ == "__main__":
-    main()
+def run(args, saver=None):
+    """执行分析（saver 为 None 时由 run_analysis 自行 reset_saver）"""
+    asyncio.run(run_analysis(
+        stock_code=args.code,
+        start_date=args.start,
+        end_date=args.end or today_str(),
+        initial_capital=args.capital,
+        show_chart=not getattr(args, "no_chart", False),
+        saver=saver,
+    ))
+    return 0

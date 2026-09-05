@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-分红后涨跌统计 —— 分红除息后 N 个交易日，下跌概率是多少？
+分红后涨跌统计 —— 分红除息后 N 个交易日，下跌概率是多少？（迁移自旧版独立脚本）
 
 以分红**除息日**为锚点（当天收盘价已是除息后价格，价格缺口已剔除），
 统计除息日后第 1~N 个交易日的累计涨跌幅：
@@ -8,104 +9,29 @@
     - 图表：各窗口下跌概率柱状图 + 除息后逐日平均累计涨跌幅曲线（事件研究）
 
 数据来源: MySQL stock_daily_quote(不复权收盘价) + stock_dividend_detail(东财分红明细)。
-分红数据缺失时自动从东方财富拉取并入库。
-
-用法:
-    python3 分红后涨跌统计.py --code 601857 --days 5,10,30
-    python3 分红后涨跌统计.py --code 601728 --days 5,10,30 --start 2021-08-20 --no-chart
+入口契约见 analysis.tools 包 docstring。
 """
 import argparse
-import os
-import sys
 import warnings as py_warnings
 
 py_warnings.filterwarnings("ignore")
 
-# 根目录 + backend 目录入 sys.path（backend 为命名空间包，其内部使用 `from models import ...`）
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
-for p in (ROOT_DIR, BACKEND_DIR):
-    if p not in sys.path:
-        sys.path.insert(0, p)
-
 import matplotlib.pyplot as plt
 
+from analysis.chart_utils import setup_chinese_fonts
+from analysis.cli import ask, code_parent, db_common_parent, range_parent
+from analysis.data_access import load_quotes, ensure_dividends
+from analysis.metrics import change_stats
+from analysis.report import print_footer, print_header
 from backend.database import SessionLocal, engine
-from backend.models import Base, StockDailyQuote, StockDividendDetail
-from backend.services import sync_stock_dividends, get_stock_name
+from backend.models import Base
+from backend.services import get_stock_name
 from result_saver import reset_saver
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Arial Unicode MS", "DejaVu Sans"]
-plt.rcParams["axes.unicode_minus"] = False
+setup_chinese_fonts()
 
-# 只统计"实施分配"的分红
-IMPL_PROGRESS = "实施分配"
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="分红后涨跌统计：以除息日为锚点，统计之后 N 个交易日下跌概率"
-    )
-    parser.add_argument("--code", default="601857", help="股票代码（默认 601857 中国石油）")
-    parser.add_argument("--start", default=None, help="观察起点 YYYY-MM-DD（默认：数据最早）")
-    parser.add_argument("--end", default=None, help="观察终点 YYYY-MM-DD（默认：数据最晚）")
-    parser.add_argument("--days", default="5,10,30",
-                        help="统计窗口（逗号分隔的交易日天数，默认 5,10,30）")
-    parser.add_argument("--sync", action="store_true", help="强制重新从东方财富拉取分红明细")
-    parser.add_argument("--no-chart", action="store_true", help="不弹出图形窗口（图片仍会保存到 results 目录）")
-    return parser.parse_args()
-
-
-def load_quotes(db, stock_code: str, start_date=None, end_date=None) -> list:
-    """读不复权收盘价（升序，可按区间过滤）"""
-    q = db.query(StockDailyQuote.trade_date, StockDailyQuote.close_price).filter(
-        StockDailyQuote.stock_code == stock_code
-    )
-    if start_date:
-        q = q.filter(StockDailyQuote.trade_date >= start_date)
-    if end_date:
-        q = q.filter(StockDailyQuote.trade_date <= end_date)
-    rows = q.order_by(StockDailyQuote.trade_date.asc()).all()
-    return [{"trade_date": r.trade_date, "close_price": float(r.close_price)} for r in rows]
-
-
-def load_dividends(db, stock_code: str) -> list:
-    """读已实施的分红明细"""
-    rows = (
-        db.query(StockDividendDetail)
-        .filter(
-            StockDividendDetail.stock_code == stock_code,
-            StockDividendDetail.assign_progress == IMPL_PROGRESS,
-        )
-        .all()
-    )
-    return [
-        {
-            "ex_dividend_date": r.ex_dividend_date,
-            "cash_per_10": float(r.cash_per_10) if r.cash_per_10 else 0.0,
-            "bonus_per_10": float(r.bonus_per_10) if r.bonus_per_10 else 0.0,
-            "conversion_per_10": float(r.conversion_per_10) if r.conversion_per_10 else 0.0,
-        }
-        for r in rows
-    ]
-
-
-def ensure_dividends(db, stock_code: str, force_sync: bool, log) -> list:
-    """确保分红数据存在：缺失或 --sync 时从东方财富拉取入库"""
-    exists = (
-        db.query(StockDividendDetail.id)
-        .filter(StockDividendDetail.stock_code == stock_code)
-        .first()
-    )
-    if exists and not force_sync:
-        return load_dividends(db, stock_code)
-
-    log(f"正在从东方财富同步 {stock_code} 的分红明细...")
-    result = sync_stock_dividends(db, stock_code)
-    log(result["message"])
-    if result["status"] != "ok":
-        return []
-    return load_dividends(db, stock_code)
+ANALYSIS_NAME = "分红后涨跌统计"
+DESCRIPTION = "以除息日为锚点，统计之后 N 个交易日下跌概率"
 
 
 def compute_events(quotes: list, dividends: list, windows: list) -> dict:
@@ -166,24 +92,27 @@ def compute_events(quotes: list, dividends: list, windows: list) -> dict:
 
 
 def _stats(events: list, w: int) -> dict:
+    """单窗口统计（源自旧脚本 _stats 的 round 2 口径）
+
+    除 median 外均由 change_stats 统一计算；median 保留旧脚本 sorted[n//2]
+    （上中位）口径以保日志字节一致，不用 statistics.median（偶数取平均）。
+    """
     rets = [e["rets"][w] for e in events]
-    downs = sum(1 for r in rets if r < 0)
+    cs = change_stats(rets)
     return {
-        "n": len(rets),
-        "down": downs,
-        "pct": round(downs / len(rets) * 100, 1) if rets else 0.0,
-        "avg": round(sum(rets) / len(rets), 2) if rets else 0.0,
+        "n": cs["count"],
+        "down": cs["down_count"],
+        "pct": round(cs["down_pct"], 1),
+        "avg": round(cs["mean"], 2),
         "median": round(sorted(rets)[len(rets) // 2], 2) if rets else 0.0,
-        "max_draw": round(min(rets), 2) if rets else 0.0,
-        "max_gain": round(max(rets), 2) if rets else 0.0,
+        "max_draw": round(cs["max_loss"], 2),
+        "max_gain": round(cs["max_gain"], 2),
     }
 
 
 def print_report(events: list, windows: list, daily_curve: list, warnings_list: list,
                  stock_name: str, stock_code: str, log):
-    log("=" * 78)
-    log(f"        {stock_name}({stock_code}) 分红后涨跌统计报告")
-    log("=" * 78)
+    print_header(log, f"{stock_name}({stock_code}) 分红后涨跌统计报告", width=78)
 
     log(f"\n1. 口径说明:")
     log("   锚点: 分红除息日（当天收盘已是除息后价格，价格缺口已剔除）")
@@ -219,7 +148,7 @@ def print_report(events: list, windows: list, daily_curve: list, warnings_list: 
         for w in warnings_list:
             log(f"   - {w}")
 
-    log("=" * 78)
+    print_footer(log, 78)
 
 
 def make_chart(events: list, windows: list, daily_curve: list,
@@ -268,22 +197,48 @@ def make_chart(events: list, windows: list, daily_curve: list,
     return chart_path
 
 
-def main():
-    os.chdir(ROOT_DIR)
-    args = parse_args()
-    stock_code = args.code.strip()
+def add_parser(sub):
+    """注册子命令（--code/--start/--end/--days/--sync/--no-chart；无 --tax）"""
+    p = sub.add_parser(ANALYSIS_NAME, help=DESCRIPTION,
+                       parents=[
+                           code_parent(),
+                           range_parent(start_help="观察起点 YYYY-MM-DD（默认：数据最早）",
+                                        end_help="观察终点 YYYY-MM-DD（默认：数据最晚）"),
+                           db_common_parent(with_tax=False),
+                       ])
+    p.add_argument("--days", default="5,10,30",
+                   help="统计窗口（逗号分隔的交易日天数，默认 5,10,30）")
+    p.set_defaults(_run=run)
+    return p
 
-    # 解析窗口
+
+def interactive_input(saver):
+    """菜单路径的交互输入"""
+    stock_code = ask("请输入股票代码（默认：601857）: ", "601857")
+    start_date = ask("请输入观察起点（默认：数据最早）: ", "")
+    end_date = ask("请输入观察终点（默认：数据最晚）: ", "")
+    days = ask("请输入统计窗口（逗号分隔的交易日天数，默认：5,10,30）: ", "5,10,30")
+    return argparse.Namespace(code=stock_code, start=start_date or None,
+                              end=end_date or None, days=days,
+                              sync=False, no_chart=False)
+
+
+def run(args, saver=None):
+    """执行分析（saver 为 None 时自行 reset_saver(ANALYSIS_NAME)）"""
+    # 解析窗口（先于 reset_saver：参数错误只提示、不落盘，与旧脚本行为一致）
     try:
         windows = sorted({int(x) for x in args.days.split(",") if x.strip()})
     except ValueError:
         print("--days 参数无效，应为逗号分隔的整数，如 5,10,30")
-        return
+        return 0
     if not windows or any(w <= 0 for w in windows):
         print("--days 参数无效，天数必须大于 0")
-        return
+        return 0
 
-    saver = reset_saver("分红后涨跌统计")
+    if saver is None:
+        saver = reset_saver(ANALYSIS_NAME)
+    stock_code = args.code.strip()
+
     saver.set_tag(stock_code)
     log = saver.log
 
@@ -296,7 +251,8 @@ def main():
         quotes = load_quotes(db, stock_code, args.start, args.end)
         if not quotes:
             log(f"数据库中没有 {stock_code} 的行情数据，请先同步行情（导入数据功能或 /api/stocks/{stock_code}/fetch）")
-            return
+            saver.finalize()
+            return 0
         log(f"共 {len(quotes)} 个交易日（{quotes[0]['trade_date']} ~ {quotes[-1]['trade_date']}）")
 
         dividends = ensure_dividends(db, stock_code, args.sync, log)
@@ -306,7 +262,8 @@ def main():
         events = result["events"]
         if not events:
             log("区间内无有效样本（无分红记录或除息日后行情不足），无法统计")
-            return
+            saver.finalize()
+            return 0
 
         print_report(events, windows, result["daily_curve"], result["warnings"],
                      stock_name, stock_code, log)
@@ -316,7 +273,4 @@ def main():
         db.close()
 
     saver.finalize()
-
-
-if __name__ == "__main__":
-    main()
+    return 0

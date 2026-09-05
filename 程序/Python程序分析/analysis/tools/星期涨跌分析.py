@@ -1,13 +1,32 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import os
+# -*- coding: utf-8 -*-
+"""
+星期涨跌分析 —— 按星期几分组统计涨跌分布并预测未来交易日（迁移自旧版独立脚本）
+
+入口契约见 analysis.tools 包 docstring。
+"""
+import argparse
 import asyncio
 import warnings
-warnings.filterwarnings('ignore')
-from datetime import datetime, timedelta
-from emdata import get_quote_reader, Market, AdjustPriceType, PeriodType
-from result_saver import get_saver, reset_saver
+from datetime import datetime
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+warnings.filterwarnings("ignore")
+
+from analysis.chart_utils import setup_chinese_fonts
+from analysis.cli import ask, code_parent, market_parent, range_parent, today_str
+from analysis.kline import fetch_kline_df
+from analysis.metrics import change_stats
+from analysis.report import print_footer, print_header
+from analysis.trading_calendar import TradingCalendar
+from result_saver import reset_saver
+
+setup_chinese_fonts()
+
+ANALYSIS_NAME = "星期涨跌分析"
+DESCRIPTION = "按星期几分组统计涨跌分布并预测未来交易日"
 
 WEEK_MAP = {
     "Monday": "星期一", "Tuesday": "星期二", "Wednesday": "星期三",
@@ -15,6 +34,16 @@ WEEK_MAP = {
 }
 
 WEEKDAY_ORDER = ["星期一", "星期二", "星期三", "星期四", "星期五"]
+
+# 交易日历（惰性加载假日 JSON）
+_calendar_cache = None
+
+
+def _get_calendar() -> TradingCalendar:
+    global _calendar_cache
+    if _calendar_cache is None:
+        _calendar_cache = TradingCalendar()
+    return _calendar_cache
 
 
 class WeekdayChangeAnalyzer:
@@ -33,59 +62,12 @@ class WeekdayChangeAnalyzer:
         self.start_date = start_date
         self.end_date = end_date if end_date else datetime.now().strftime('%Y-%m-%d')
 
-        print(f"正在获取{stock_name}({stock_code}) {start_date}至{self.end_date}的日K线数据...")
-
-        if stock_code == "000001" and stock_name == "上证指数":
-            market_code = Market.SHANGHAI
-        else:
-            market_code = Market.SHANGHAI if stock_code.startswith('6') else Market.SHENGZHEN
-
-        start_date_formatted = start_date.replace('-', '')
-        end_date_formatted = end_date.replace('-', '')
-
-        reader = get_quote_reader()
-
-        try:
-            quote = await reader.read_quote_async(
-                market=market_code,
-                stock_code=stock_code,
-                adjust_type=AdjustPriceType.NONE,
-                period_type=PeriodType.DAILY,
-                end_date=end_date_formatted,
-                limit=2000
-            )
-
-            if quote is None:
-                print(f"无法获取{stock_name}({stock_code})的数据")
-                self.df = pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
-                return self.df
-
-            kline_data = []
-            for line in quote.quote_lines:
-                kline_data.append({
-                    'date': line.trade_date,
-                    'open': line.open,
-                    'high': line.high,
-                    'low': line.low,
-                    'close': line.close,
-                    'volume': line.volume
-                })
-
-            self.df = pd.DataFrame(kline_data)
-            self.df = self.df.sort_values('date').reset_index(drop=True)
-
-            if start_date or end_date:
-                start_dt = pd.to_datetime(start_date)
-                end_dt = pd.to_datetime(end_date)
-                self.df = self.df[(self.df['date'] >= start_dt) & (self.df['date'] <= end_dt)]
-
-            print(f"成功获取 {len(self.df)} 条日K线数据")
-            return self.df
-
-        except Exception as e:
-            print(f"获取数据时出错: {e}")
-            self.df = pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
-            return self.df
+        # 抓取委托 analysis.kline（limit 按区间自动估算）
+        self.df, _ = await fetch_kline_df(
+            stock_code, start_date, self.end_date,
+            stock_name=stock_name, period="daily",
+        )
+        return self.df
 
     def analyze_weekday(self):
         """按星期几分组分析涨跌分布"""
@@ -104,32 +86,20 @@ class WeekdayChangeAnalyzer:
         stats = {}
         for wd in WEEKDAY_ORDER:
             wd_data = df[df['weekday_cn'] == wd]['change_pct']
-            if len(wd_data) == 0:
-                stats[wd] = {
-                    'count': 0, 'up_count': 0, 'down_count': 0, 'flat_count': 0,
-                    'up_pct': 0, 'down_pct': 0,
-                    'mean': 0, 'median': 0, 'std': 0,
-                    'max_gain': 0, 'max_loss': 0
-                }
-                continue
-
-            up_count = len(wd_data[wd_data > 0])
-            down_count = len(wd_data[wd_data < 0])
-            flat_count = len(wd_data[wd_data == 0])
-            total = len(wd_data)
-
+            # 涨跌统计（统一口径 analysis.metrics.change_stats，舍入口径与旧脚本逐位一致）
+            cs = change_stats(wd_data)
             stats[wd] = {
-                'count': total,
-                'up_count': up_count,
-                'down_count': down_count,
-                'flat_count': flat_count,
-                'up_pct': round(up_count / total * 100, 2) if total > 0 else 0,
-                'down_pct': round(down_count / total * 100, 2) if total > 0 else 0,
-                'mean': round(wd_data.mean(), 4),
-                'median': round(wd_data.median(), 4),
-                'std': round(wd_data.std(), 4),
-                'max_gain': round(wd_data.max(), 4),
-                'max_loss': round(wd_data.min(), 4)
+                'count': cs['count'],
+                'up_count': cs['up_count'],
+                'down_count': cs['down_count'],
+                'flat_count': cs['flat_count'],
+                'up_pct': round(cs['up_pct'], 2),
+                'down_pct': round(cs['down_pct'], 2),
+                'mean': round(cs['mean'], 4),
+                'median': round(cs['median'], 4),
+                'std': round(cs['std'], 4),
+                'max_gain': round(cs['max_gain'], 4),
+                'max_loss': round(cs['max_loss'], 4),
             }
 
         self.weekday_stats = stats
@@ -142,10 +112,8 @@ class WeekdayChangeAnalyzer:
             print("请先执行 analyze_weekday()")
             return None
 
-        next_date = self.df['date'].max() + timedelta(days=1)
-        # 跳过周末找到下一个交易日
-        while next_date.weekday() >= 5:
-            next_date += timedelta(days=1)
+        # 下一个交易日（节假日感知；超出日历范围时退化为只跳过周末）
+        next_date = _get_calendar().next_trading_day(self.df['date'].max())
 
         en_name = next_date.strftime("%A")
         cn_name = WEEK_MAP[en_name]
@@ -171,9 +139,7 @@ class WeekdayChangeAnalyzer:
         current = self.df['date'].max()
 
         for _ in range(5):
-            current = current + timedelta(days=1)
-            while current.weekday() >= 5:
-                current += timedelta(days=1)
+            current = _get_calendar().next_trading_day(current)
 
             en_name = current.strftime("%A")
             cn_name = WEEK_MAP[en_name]
@@ -190,14 +156,11 @@ class WeekdayChangeAnalyzer:
 
         return predictions
 
-    def plot_weekday_analysis(self):
+    def plot_weekday_analysis(self, show=True):
         """绘制星期几涨跌分析图表"""
         if self.weekday_stats is None:
             print("请先执行 analyze_weekday()")
             return
-
-        plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'DejaVu Sans']
-        plt.rcParams['axes.unicode_minus'] = False
 
         fig = plt.figure(figsize=(18, 14))
 
@@ -308,7 +271,8 @@ class WeekdayChangeAnalyzer:
             ax6.grid(True, alpha=0.3)
 
         plt.tight_layout()
-        plt.show()
+        if show:
+            plt.show()
 
     def generate_report(self, saver=None):
         """生成分析报告"""
@@ -322,10 +286,10 @@ class WeekdayChangeAnalyzer:
 
         log_func = saver.log if saver else print
 
-        log_func("=" * 70)
-        log_func(f"     {self.stock_name}({self.stock_code}) 星期涨跌分析报告")
-        log_func(f"     分析期间: {self.start_date} 至 {self.end_date}")
-        log_func("=" * 70)
+        print_header(log_func,
+                     f"{self.stock_name}({self.stock_code}) 星期涨跌分析报告",
+                     width=70, indent=5,
+                     extra=[f"     分析期间: {self.start_date} 至 {self.end_date}"])
 
         log_func(f"\n一、各星期涨跌统计:")
         log_func(f"{'星期':<8} {'交易日数':<10} {'上涨':<8} {'下跌':<8} {'上涨率':<10} {'下跌率':<10} {'平均涨跌%':<12}")
@@ -364,56 +328,55 @@ class WeekdayChangeAnalyzer:
                 log_func(f"{p['date']:<14} {p['weekday']:<8} {p['up_probability']:<12.1f} "
                          f"{p['down_probability']:<12.1f} {p['mean_change']:<12.4f}")
 
-        log_func("=" * 70)
+        print_footer(log_func, 70)
 
 
-def get_user_input(saver=None):
+def add_parser(sub):
+    """注册子命令（--code/--name/--start/--end/--no-chart）"""
+    p = sub.add_parser(ANALYSIS_NAME, help=DESCRIPTION,
+                       parents=[
+                           code_parent(default="000001",
+                                       help_text="股票代码（默认 000001 上证指数）"),
+                           range_parent(start_help="起始日期 YYYY-MM-DD（默认：2008-01-01）",
+                                        end_help="结束日期 YYYY-MM-DD（默认：今天）"),
+                           market_parent(),
+                       ])
+    p.set_defaults(_run=run)
+    return p
+
+
+def interactive_input(saver):
+    """菜单路径的交互输入（欢迎语与旧脚本逐字一致）"""
     log_func = saver.log if saver else print
-    today = datetime.now().strftime('%Y-%m-%d')
-
     log_func("=== 星期涨跌分析工具 ===")
-    try:
-        stock_code = input("请输入股票代码（默认：000001 上证指数）: ") or "000001"
-    except EOFError:
-        stock_code = "000001"
 
-    try:
-        stock_name = input("请输入股票名称（默认：上证指数）: ") or "上证指数"
-    except EOFError:
-        stock_name = "上证指数"
+    stock_code = ask("请输入股票代码（默认：000001 上证指数）: ", "000001")
+    stock_name = ask("请输入股票名称（默认：上证指数）: ", "上证指数")
+    start_date = ask("请输入起始日期（默认：2008-01-01）: ", "2008-01-01")
+    end_date = ask(f"请输入结束日期（默认：{today_str()}）: ", today_str())
 
-    try:
-        start_date = input("请输入起始日期（默认：2008-01-01）: ") or "2008-01-01"
-    except EOFError:
-        start_date = "2008-01-01"
-
-    try:
-        end_date = input(f"请输入结束日期（默认：{today}）: ") or today
-    except EOFError:
-        end_date = today
-
-    return stock_code, stock_name, start_date, end_date
+    return argparse.Namespace(code=stock_code, name=stock_name,
+                              start=start_date, end=end_date, no_chart=False)
 
 
-def main():
-    saver = reset_saver("星期涨跌分析")
+def run(args, saver=None):
+    """执行分析（saver 为 None 时自行 reset_saver(ANALYSIS_NAME)）"""
+    if saver is None:
+        saver = reset_saver(ANALYSIS_NAME)
+
     analyzer = WeekdayChangeAnalyzer()
+    saver.set_tag(args.code)
 
-    stock_code, stock_name, start_date, end_date = get_user_input(saver)
-    saver.set_tag(stock_code)
-
-    asyncio.run(analyzer.fetch_kline_data(stock_code, stock_name, start_date, end_date))
+    asyncio.run(analyzer.fetch_kline_data(
+        args.code, args.name, args.start, args.end or today_str()))
 
     saver.log(f"\n数据预览 (共{len(analyzer.df)}条):")
     saver.log(analyzer.df.head().to_string())
 
     analyzer.analyze_weekday()
     analyzer.generate_report(saver)
-    analyzer.plot_weekday_analysis()
+    analyzer.plot_weekday_analysis(show=not getattr(args, "no_chart", False))
 
-    saver.save_chart(f"{stock_code}_星期涨跌分析.jpg")
+    saver.save_chart(f"{args.code}_星期涨跌分析.jpg")
     saver.finalize()
-
-
-if __name__ == "__main__":
-    main()
+    return 0

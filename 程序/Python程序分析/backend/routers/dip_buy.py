@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from schemas import DipBuyRequest
 from services import get_stock_name
-from dip_buy_service import run_dip_buy
+from simulation.strategy_runners import run_dip_buy
 
 router = APIRouter(prefix="/api/dip-buy", tags=["dip-buy"])
 

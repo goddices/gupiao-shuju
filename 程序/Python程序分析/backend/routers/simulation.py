@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
-from simulation_service import (
+from simulation.account_service import (
     get_account_summary,
     execute_buy,
     execute_sell,

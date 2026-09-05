@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from schemas import DividendTargetRequest
 from services import get_stock_name
-from dividend_target_service import plan_target
+from simulation.strategy_runners import plan_target
 
 router = APIRouter(prefix="/api/dividend-target", tags=["dividend-target"])
 

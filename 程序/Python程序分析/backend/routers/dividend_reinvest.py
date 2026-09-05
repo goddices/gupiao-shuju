@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from schemas import DividendSimulateRequest
 from services import sync_stock_dividends, get_stock_dividend_details, get_stock_name
-from dividend_reinvest_service import run_dividend_reinvest
+from simulation.strategy_runners import run_dividend_reinvest
 
 router = APIRouter(prefix="/api/dividend-reinvest", tags=["dividend-reinvest"])
 

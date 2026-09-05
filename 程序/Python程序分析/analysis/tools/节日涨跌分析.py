@@ -1,21 +1,34 @@
+# -*- coding: utf-8 -*-
 """
-节日涨跌分析 - 分析中国A股在主要节假日前后7个交易日的涨跌幅度和概率
-支持春节、国庆节、劳动节、端午节、中秋节、清明节、元旦等主要节日
+节日涨跌分析 —— 法定节假日前后涨跌对比与热力图（迁移自旧版独立脚本）
+
+支持春节、国庆节、劳动节、端午节、中秋节、清明节、元旦等主要节日。
+入口契约见 analysis.tools 包 docstring。
 """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import os
-import sys
-import json
+import argparse
 import asyncio
 import warnings
-warnings.filterwarnings('ignore')
-from datetime import datetime, timedelta, date
 from collections import defaultdict
+from datetime import date, datetime
 
-from emdata import get_quote_reader, Market, AdjustPriceType, PeriodType
-from result_saver import get_saver, reset_saver
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+warnings.filterwarnings("ignore")
+
+from analysis.chart_utils import setup_chinese_fonts
+from analysis.cli import ask, code_parent, market_parent, range_parent, today_str
+from analysis.kline import fetch_kline_df
+from analysis.metrics import change_stats
+from analysis.report import print_footer, print_header
+from analysis.trading_calendar import find_trading_days_around, load_holiday_data
+from result_saver import reset_saver
+
+setup_chinese_fonts()
+
+ANALYSIS_NAME = "节日涨跌分析"
+DESCRIPTION = "法定节假日前后涨跌对比与热力图"
 
 # 主要节日列表（按重要性排序）
 MAJOR_HOLIDAYS = ["春节", "国庆节", "劳动节", "端午节", "中秋节", "清明节", "元旦"]
@@ -49,67 +62,10 @@ class HolidayAnalyzer:
     # ==================== 假日数据加载 ====================
 
     def load_holiday_data(self):
-        """加载2008-2026年所有假日数据，构建非交易日集合"""
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        all_public_holidays = set()
-        all_transfer_workdays = set()
-        holiday_events_by_name = defaultdict(list)
-
-        for year in range(2008, 2027):
-            filename = os.path.join(script_dir, "public_data", "cn_holidays", f"china_holidays_{year}.json")
-            if not os.path.exists(filename):
-                continue
-
-            with open(filename, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            for entry in data.get("dates", []):
-                d = entry["date"]
-                if entry["type"] == "public_holiday":
-                    all_public_holidays.add(d)
-                    holiday_events_by_name[(entry["name"], year)].append(d)
-                elif entry["type"] == "transfer_workday":
-                    all_transfer_workdays.add(d)
-
-        # 构建假日事件列表
-        for (name, year), dates in holiday_events_by_name.items():
-            if name not in MAJOR_HOLIDAYS:
-                continue
-            dates_sorted = sorted(dates)
-            self.holiday_events.append({
-                "name": name,
-                "year": year,
-                "start": dates_sorted[0],
-                "end": dates_sorted[-1],
-                "dates": dates_sorted,
-            })
-
-        # 按年份和节日名排序
-        self.holiday_events.sort(key=lambda x: (x["year"], MAJOR_HOLIDAYS.index(x["name"])))
-
-        # 构建非交易日集合（2008-2026年间所有日期）
-        self._build_non_trading_set(all_public_holidays, all_transfer_workdays)
-
+        """加载2008-2026年所有假日数据，构建非交易日集合（委托 analysis.trading_calendar）"""
+        self.holiday_events, self.non_trading_dates = load_holiday_data()
         print(f"已加载 {len(self.holiday_events)} 个节日事件（{len(MAJOR_HOLIDAYS)}种节日）")
         return self.holiday_events
-
-    def _build_non_trading_set(self, public_holidays, transfer_workdays):
-        """构建非交易日集合：周末 + 节假日 - 补班日"""
-        self.non_trading_dates = set()
-        start = date(2008, 1, 1)
-        end = date(2026, 12, 31)
-        current = start
-        while current <= end:
-            d_str = current.strftime("%Y-%m-%d")
-            is_weekend = current.weekday() >= 5
-            is_holiday = d_str in public_holidays
-            is_workday_transfer = d_str in transfer_workdays
-
-            # 非交易日 = (周末或节假日) 且不是补班日
-            if (is_weekend or is_holiday) and not is_workday_transfer:
-                self.non_trading_dates.add(d_str)
-
-            current += timedelta(days=1)
 
     def is_trading_day(self, d):
         """判断是否为交易日"""
@@ -140,102 +96,24 @@ class HolidayAnalyzer:
         self.start_date = start_date
         self.end_date = end_date if end_date else datetime.now().strftime('%Y-%m-%d')
 
-        print(f"正在获取{stock_name}({stock_code}) {start_date}至{self.end_date}的日K线数据...")
+        # 抓取委托 analysis.kline（limit 按区间自动估算，与原实现同口径）
+        self.df, _ = await fetch_kline_df(
+            stock_code, start_date, self.end_date,
+            stock_name=stock_name, period="daily",
+        )
 
-        if stock_code == "000001" and stock_name == "上证指数":
-            market_code = Market.SHANGHAI
-        else:
-            market_code = Market.SHANGHAI if stock_code.startswith('6') else Market.SHENGZHEN
+        # 提取实际交易日
+        self.get_trading_dates_from_data()
 
-        reader = get_quote_reader()
-
-        try:
-            # 计算需要获取的数据量（大约天数 * 1.5 确保足够）
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            end_dt = datetime.strptime(self.end_date, "%Y-%m-%d")
-            days_diff = (end_dt - start_dt).days + 100
-            limit = min(max(days_diff, 1000), 5000)
-
-            start_date_formatted = start_date.replace('-', '')
-            end_date_formatted = self.end_date.replace('-', '')
-
-            quote = await reader.read_quote_async(
-                market=market_code,
-                stock_code=stock_code,
-                adjust_type=AdjustPriceType.NONE,
-                period_type=PeriodType.DAILY,
-                end_date=end_date_formatted,
-                limit=limit
-            )
-
-            if quote is None:
-                print(f"无法获取{stock_name}({stock_code})的数据")
-                self.df = pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
-                return self.df
-
-            kline_data = []
-            for line in quote.quote_lines:
-                kline_data.append({
-                    'date': line.trade_date,
-                    'open': line.open,
-                    'high': line.high,
-                    'low': line.low,
-                    'close': line.close,
-                    'volume': line.volume
-                })
-
-            self.df = pd.DataFrame(kline_data)
-            self.df = self.df.sort_values('date').reset_index(drop=True)
-
-            if start_date or end_date:
-                start_dt = pd.to_datetime(start_date)
-                end_dt = pd.to_datetime(end_date)
-                self.df = self.df[(self.df['date'] >= start_dt) & (self.df['date'] <= end_dt)]
-
-            # 提取实际交易日
-            self.get_trading_dates_from_data()
-
-            print(f"成功获取 {len(self.df)} 条日K线数据，包含 {len(self.trading_dates)} 个交易日")
-            return self.df
-
-        except Exception as e:
-            print(f"获取数据时出错: {e}")
-            self.df = pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
-            return self.df
+        print(f"成功获取 {len(self.df)} 条日K线数据，包含 {len(self.trading_dates)} 个交易日")
+        return self.df
 
     # ==================== 核心分析逻辑 ====================
 
     def find_trading_days_around(self, target_date_str, direction="before", count=7):
-        """从目标日期开始，向前或向后找count个交易日"""
-        result = []
-        target = datetime.strptime(target_date_str, "%Y-%m-%d")
-
-        if direction == "before":
-            current = target - timedelta(days=1)
-        else:
-            current = target + timedelta(days=1)
-
-        max_iterations = 60  # 防止无限循环
-        iterations = 0
-
-        while len(result) < count and iterations < max_iterations:
-            d_str = current.strftime("%Y-%m-%d")
-            # 优先使用实际数据中的交易日，没有则用规则判断
-            if self.trading_dates:
-                is_trading = d_str in self.trading_dates
-            else:
-                is_trading = self.is_trading_day(d_str)
-
-            if is_trading:
-                result.append(d_str)
-
-            if direction == "before":
-                current -= timedelta(days=1)
-            else:
-                current += timedelta(days=1)
-            iterations += 1
-
-        return result if direction == "before" else result
+        """从目标日期开始，向前或向后找count个交易日（委托 analysis.trading_calendar）"""
+        return find_trading_days_around(target_date_str, direction, count,
+                                        trading_dates=self.trading_dates)
 
     def find_last_trading_before(self, date_str):
         """找到date_str之前最后一个交易日"""
@@ -384,24 +262,22 @@ class HolidayAnalyzer:
             self.analysis_results[name] = {}
             for key, records in raw_data[name].items():
                 changes = [r['change_pct'] for r in records]
-                up_count = sum(1 for c in changes if c > 0)
-                down_count = sum(1 for c in changes if c < 0)
-                flat_count = sum(1 for c in changes if c == 0)
-                total = len(changes)
-
+                # 涨跌统计（统一口径 analysis.metrics.change_stats；
+                # std 沿用旧口径 np.std 总体标准差，records/total_return 附加键保留）
+                cs = change_stats(changes)
                 self.analysis_results[name][key] = {
-                    'count': total,
-                    'up_count': up_count,
-                    'down_count': down_count,
-                    'flat_count': flat_count,
-                    'up_probability': round(up_count / total * 100, 2) if total > 0 else 0,
-                    'down_probability': round(down_count / total * 100, 2) if total > 0 else 0,
-                    'mean_change': round(np.mean(changes), 4) if total > 0 else 0,
-                    'median_change': round(np.median(changes), 4) if total > 0 else 0,
-                    'std_change': round(np.std(changes), 4) if total > 0 else 0,
-                    'max_gain': round(max(changes), 4) if total > 0 else 0,
-                    'max_loss': round(min(changes), 4) if total > 0 else 0,
-                    'total_return': round(sum(changes), 4) if total > 0 else 0,
+                    'count': cs['count'],
+                    'up_count': cs['up_count'],
+                    'down_count': cs['down_count'],
+                    'flat_count': cs['flat_count'],
+                    'up_probability': round(cs['up_pct'], 2) if cs['count'] > 0 else 0,
+                    'down_probability': round(cs['down_pct'], 2) if cs['count'] > 0 else 0,
+                    'mean_change': round(cs['mean'], 4) if cs['count'] > 0 else 0,
+                    'median_change': round(cs['median'], 4) if cs['count'] > 0 else 0,
+                    'std_change': round(np.std(changes), 4) if cs['count'] > 0 else 0,
+                    'max_gain': round(cs['max_gain'], 4) if cs['count'] > 0 else 0,
+                    'max_loss': round(cs['max_loss'], 4) if cs['count'] > 0 else 0,
+                    'total_return': round(sum(changes), 4) if cs['count'] > 0 else 0,
                     'records': records  # 保留原始记录
                 }
 
@@ -421,11 +297,13 @@ class HolidayAnalyzer:
 
         log_func = saver.log if saver else print
 
-        log_func("=" * 80)
-        log_func(f"     {self.stock_name}({self.stock_code}) 节日前后涨跌分析报告")
-        log_func(f"     分析期间: {self.start_date} 至 {self.end_date}")
-        log_func(f"     涵盖节日: 2008-2026年共 {len(MAJOR_HOLIDAYS)} 种节日")
-        log_func("=" * 80)
+        print_header(log_func,
+                     f"{self.stock_name}({self.stock_code}) 节日前后涨跌分析报告",
+                     width=80, indent=5,
+                     extra=[
+                         f"     分析期间: {self.start_date} 至 {self.end_date}",
+                         f"     涵盖节日: 2008-2026年共 {len(MAJOR_HOLIDAYS)} 种节日",
+                     ])
 
         for name in MAJOR_HOLIDAYS:
             if name not in self.analysis_results:
@@ -535,18 +413,15 @@ class HolidayAnalyzer:
         ca = self.analysis_results[best_cum_after].get("cumulative_after", {})
         log_func(f"  ✅ 节后7日累计涨幅最大的节日: {best_cum_after} ({ca.get('mean_change', 0):.4f}%)")
 
-        log_func("=" * 80)
+        print_footer(log_func, 80)
 
     # ==================== 图表绘制 ====================
 
-    def plot_holiday_analysis(self, lookback=7, lookforward=7):
+    def plot_holiday_analysis(self, lookback=7, lookforward=7, show=True):
         """绘制节日分析图表"""
         if not self.analysis_results:
             print("请先执行 analyze_holiday()")
             return
-
-        plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'DejaVu Sans']
-        plt.rcParams['axes.unicode_minus'] = False
 
         active_holidays = [h for h in MAJOR_HOLIDAYS if h in self.analysis_results]
         n_holidays = len(active_holidays)
@@ -696,16 +571,14 @@ class HolidayAnalyzer:
                                     fontsize=7)
 
         plt.tight_layout()
-        plt.show()
+        if show:
+            plt.show()
 
-    def plot_heatmap(self):
+    def plot_heatmap(self, show=True):
         """绘制节日逐年热力图（节后首日涨跌）"""
         if not self.analysis_results:
             print("请先执行 analyze_holiday()")
             return
-
-        plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'DejaVu Sans']
-        plt.rcParams['axes.unicode_minus'] = False
 
         active_holidays = [h for h in MAJOR_HOLIDAYS if h in self.analysis_results]
         if not active_holidays:
@@ -760,44 +633,44 @@ class HolidayAnalyzer:
         plt.tight_layout()
 
         plt.tight_layout()
-        plt.show()
+        if show:
+            plt.show()
 
 
-# ==================== 主程序 ====================
+def add_parser(sub):
+    """注册子命令（--code/--name/--start/--end/--no-chart）"""
+    p = sub.add_parser(ANALYSIS_NAME, help=DESCRIPTION,
+                       parents=[
+                           code_parent(default="000001",
+                                       help_text="股票代码（默认 000001 上证指数）"),
+                           range_parent(start_help="起始日期 YYYY-MM-DD（默认：2008-01-01）",
+                                        end_help="结束日期 YYYY-MM-DD（默认：今天）"),
+                           market_parent(),
+                       ])
+    p.set_defaults(_run=run)
+    return p
 
-def get_user_input(saver=None):
-    """获取用户输入"""
+
+def interactive_input(saver):
+    """菜单路径的交互输入（欢迎语与旧脚本逐字一致）"""
     log_func = saver.log if saver else print
-    today = datetime.now().strftime('%Y-%m-%d')
-
     log_func("=== 节日涨跌分析工具 ===")
     log_func("分析主要节日（春节、国庆节等）前后7个交易日的涨跌幅度和概率")
     log_func(f"数据范围: 2008-2026年假期数据\n")
-    try:
-        stock_code = input("请输入股票代码（默认：000001 上证指数）: ").strip() or "000001"
-    except EOFError:
-        stock_code = "000001"
 
-    try:
-        stock_name = input("请输入股票名称（默认：上证指数）: ").strip() or "上证指数"
-    except EOFError:
-        stock_name = "上证指数"
+    stock_code = ask("请输入股票代码（默认：000001 上证指数）: ", "000001")
+    stock_name = ask("请输入股票名称（默认：上证指数）: ", "上证指数")
+    start_date = ask("请输入起始日期（默认：2008-01-01）: ", "2008-01-01")
+    end_date = ask(f"请输入结束日期（默认：{today_str()}）: ", today_str())
 
-    try:
-        start_date = input("请输入起始日期（默认：2008-01-01）: ").strip() or "2008-01-01"
-    except EOFError:
-        start_date = "2008-01-01"
-
-    try:
-        end_date = input(f"请输入结束日期（默认：{today}）: ").strip() or today
-    except EOFError:
-        end_date = today
-
-    return stock_code, stock_name, start_date, end_date
+    return argparse.Namespace(code=stock_code, name=stock_name,
+                              start=start_date, end=end_date, no_chart=False)
 
 
-def main():
-    saver = reset_saver("节日涨跌分析")
+def run(args, saver=None):
+    """执行分析（saver 为 None 时自行 reset_saver(ANALYSIS_NAME)）"""
+    if saver is None:
+        saver = reset_saver(ANALYSIS_NAME)
     analyzer = HolidayAnalyzer()
 
     # 1. 加载假日数据
@@ -805,16 +678,16 @@ def main():
     analyzer.load_holiday_data()
     saver.log(f"已加载 {len(analyzer.holiday_events)} 个节日事件")
 
-    # 2. 获取用户输入
-    stock_code, stock_name, start_date, end_date = get_user_input(saver)
-    saver.set_tag(stock_code)
+    saver.set_tag(args.code)
 
     # 3. 获取K线数据
-    asyncio.run(analyzer.fetch_kline_data(stock_code, stock_name, start_date, end_date))
+    asyncio.run(analyzer.fetch_kline_data(
+        args.code, args.name, args.start, args.end or today_str()))
 
     if analyzer.df is None or len(analyzer.df) == 0:
         saver.log("无法获取K线数据，程序退出")
-        return
+        saver.finalize()
+        return 2
 
     saver.log(f"\n数据预览 (共{len(analyzer.df)}条):")
     saver.log(analyzer.df.head().to_string())
@@ -827,14 +700,12 @@ def main():
     analyzer.generate_report(saver)
 
     # 6. 绘图
-    analyzer.plot_holiday_analysis(lookback=7, lookforward=7)
-    saver.save_chart(f"{stock_code}_节日涨跌分析.jpg")
+    show = not getattr(args, "no_chart", False)
+    analyzer.plot_holiday_analysis(lookback=7, lookforward=7, show=show)
+    saver.save_chart(f"{args.code}_节日涨跌分析.jpg")
 
-    analyzer.plot_heatmap()
-    saver.save_chart(f"{stock_code}_节日热力图.jpg")
+    analyzer.plot_heatmap(show=show)
+    saver.save_chart(f"{args.code}_节日热力图.jpg")
 
     saver.finalize()
-
-
-if __name__ == "__main__":
-    main()
+    return 0

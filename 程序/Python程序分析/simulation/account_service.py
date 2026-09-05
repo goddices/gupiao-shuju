@@ -1,4 +1,4 @@
-"""模拟买卖持仓服务 —— A股费用计算、买卖、持仓管理"""
+"""模拟买卖持仓服务 —— A股费用计算、买卖、持仓管理（位于 simulation 包，由 backend/routers/simulation.py 调用）"""
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional

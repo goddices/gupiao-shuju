@@ -9,7 +9,8 @@
     no_reinvest 分红不投（分红现金留存）
     price_only  纯股价（忽略分红，仅不复权价格涨跌）
 
-独立脚本(红利再投.py)与 backend 服务共用本引擎。
+股票分析.py 的 DB 类工具（analysis/tools/）与 backend 各路由经
+simulation.strategy_runners 统一取数后调用本引擎。
 """
 from datetime import date, timedelta
 from typing import Optional

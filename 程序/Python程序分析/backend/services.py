@@ -857,53 +857,12 @@ MAJOR_HOLIDAYS = ["春节", "国庆节", "劳动节", "端午节", "中秋节", 
 
 
 def _load_holiday_data():
-    """加载假日数据，返回 (holiday_events, non_trading_dates_set)"""
-    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    public_holidays = set()
-    transfer_workdays = set()
-    holiday_events_by_name = defaultdict(list)
+    """加载假日数据，返回 (holiday_events, non_trading_dates_set)
 
-    for year in range(2008, 2027):
-        filename = os.path.join(script_dir, "public_data", "cn_holidays", f"china_holidays_{year}.json")
-        if not os.path.exists(filename):
-            continue
-        with open(filename, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        for entry in data.get("dates", []):
-            d = entry["date"]
-            if entry["type"] == "public_holiday":
-                public_holidays.add(d)
-                holiday_events_by_name[(entry["name"], year)].append(d)
-            elif entry["type"] == "transfer_workday":
-                transfer_workdays.add(d)
-
-    # 构建假日事件
-    holiday_events = []
-    for (name, year), dates in holiday_events_by_name.items():
-        if name not in MAJOR_HOLIDAYS:
-            continue
-        dates_sorted = sorted(dates)
-        holiday_events.append({
-            "name": name, "year": year,
-            "start": dates_sorted[0], "end": dates_sorted[-1],
-        })
-    holiday_events.sort(key=lambda x: (x["year"], MAJOR_HOLIDAYS.index(x["name"])))
-
-    # 构建非交易日集合
-    non_trading = set()
-    start = date(2008, 1, 1)
-    end = date(2026, 12, 31)
-    current = start
-    while current <= end:
-        d_str = current.strftime("%Y-%m-%d")
-        is_weekend = current.weekday() >= 5
-        is_holiday = d_str in public_holidays
-        is_workday_transfer = d_str in transfer_workdays
-        if (is_weekend or is_holiday) and not is_workday_transfer:
-            non_trading.add(d_str)
-        current += timedelta(days=1)
-
-    return holiday_events, non_trading
+    委托 analysis.trading_calendar（与 股票分析.py 的「节日涨跌分析」工具共用同一实现）。
+    """
+    from analysis.trading_calendar import load_holiday_data
+    return load_holiday_data()
 
 
 def get_holiday_analysis(db: Session, stock_code: str) -> dict:
