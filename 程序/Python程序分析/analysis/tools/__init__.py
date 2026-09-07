@@ -11,6 +11,10 @@ web 后端进程永不加载这里的工具链（matplotlib/sklearn/result_saver
     add_parser(subparsers)   注册子命令并 set_defaults(_run=run)
     run(args, saver=None)    执行（saver 为 None 时自行 reset_saver(ANALYSIS_NAME)）
     interactive_input(saver) 菜单路径的交互输入，返回 argparse.Namespace
+
+私有模块（下划线前缀，不入 TOOLS，不会被当工具加载）：
+    _reinvest_common  红利再投/红利再投增强版/大跌分批买入 三工具共用的
+                      报告节、对比图骨架、run() 骨架与公共问项
 """
 TOOLS = {
     "红利再投": ("红利再投", "个股长期红利再投收益模拟（不复权 + 分红无脑再投）"),

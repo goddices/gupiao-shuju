@@ -1,7 +1,7 @@
 #使用这个编程方式获取行情数据
 from tickflow import TickFlow
 
-tf = TickFlow(api_key="tk_aef1f7190ff44f32b5226f796a3c38ea")
+tf = TickFlow(api_key="<你的 TickFlow API Key>")  # 经环境变量 TICKFLOW_API_KEY 注入，勿写明文
 
 #使用股票代码.市场代码， 市场代码有
 后缀	市场	说明

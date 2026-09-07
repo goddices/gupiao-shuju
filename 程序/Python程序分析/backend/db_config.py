@@ -16,7 +16,3 @@ DATABASE_URL = (
     f"@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
     f"?charset={DB_CONFIG['charset']}"
 )
-
-# 东方财富 API 默认参数
-EASTMONEY_DEFAULT_START = "20060101"
-EASTMONEY_DEFAULT_PERIOD = 5000

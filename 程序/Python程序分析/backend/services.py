@@ -3,6 +3,7 @@ import sys
 import os
 import json
 import asyncio
+import threading
 import numpy as np
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -514,7 +515,6 @@ def get_latest_trade_date(db: Session, stock_code: str) -> Optional[date]:
 
 
 # ---- 行情自动同步（本地优先 + 新鲜度检查） ----
-import threading
 
 # 正在同步的股票集合,避免同一股票并发重复同步
 _syncing_stocks = set()

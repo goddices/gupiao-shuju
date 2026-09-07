@@ -3,6 +3,10 @@
 模拟持仓 —— 买入持有/理想买卖/均线策略三策略模拟对比（迁移自旧版独立脚本）
 
 行情为前复权口径（分红送转已还原）。
+成本价为除权除息调整口径：每笔买入的实际成交价（不复权）在其持有窗口内
+逐次调整——现金分红→每股成本降低（并计入分红到账），送转股→股数增加、
+成本摊薄；按调整后的平均成本价计算收益率（分红数据来自 MySQL
+stock_dividend_detail，不可用时回退前复权成本口径）。
 入口契约见 analysis.tools 包 docstring。
 """
 import argparse
@@ -22,9 +26,12 @@ from emdata import AdjustPriceType
 
 from analysis.chart_utils import setup_chinese_fonts
 from analysis.cli import ask, code_parent, range_parent, today_str
+from analysis.data_access import ensure_dividends
 from analysis.kline import fetch_kline_df
 from analysis.metrics import calc_max_drawdown, total_return_pct
 from analysis.report import print_footer, print_header, print_strategy_block
+from backend.database import SessionLocal, engine
+from backend.models import Base
 from result_saver import reset_saver
 
 setup_chinese_fonts()
@@ -51,6 +58,7 @@ class StrategyResult:
     return_pct: float
     max_drawdown_pct: float
     cost_avg: float  # 前复权成本均价（行情为前复权口径，成本价即前复权口径）
+    cost_adjust: Optional[dict] = None  # 除权除息成本调整结果（adjust_cost_by_dividends）
 
 
 def calc_cost_avg(trades: List[Trade]) -> float:
@@ -59,6 +67,100 @@ def calc_cost_avg(trades: List[Trade]) -> float:
     total_amount = sum(t.amount for t in buys)
     total_shares = sum(t.shares for t in buys)
     return total_amount / total_shares if total_shares else 0.0
+
+
+def pair_lots(trades: List[Trade]) -> List[dict]:
+    """把全进全出的交易序列按时间配成持仓批次 [{buy, sell|None}, ...]"""
+    lots: List[dict] = []
+    open_lot = None
+    for t in trades:
+        if t.action == "买入":
+            open_lot = {"buy": t, "sell": None}
+            lots.append(open_lot)
+        elif t.action == "卖出" and open_lot is not None:
+            open_lot["sell"] = t
+            open_lot = None
+    return lots
+
+
+def adjust_cost_by_dividends(trades: List[Trade], dividends: list,
+                             raw_close_map: dict, fwd_close_map: dict,
+                             raw_end_close: float, tax_rate: float = 0.0) -> Optional[dict]:
+    """除权除息成本调整（摊薄成本口径）
+
+    每笔买入的实际成交价（不复权，由前复权价 × 当日 不复权/前复权 收盘比折算，
+    以兼容理想买卖等按 low/high 成交的虚拟交易）在其持有窗口内逐次调整：
+        现金分红: 每股成本 − 每股红利（税后）；分红到账 += 当时持股 × 每股红利（税后）
+        送转股:   股数 ×(1+比例)，每股成本 ÷(1+比例)
+    收益率按批次「实际投入金额」加权：批次收益率 = (卖出/期末价 − 调整后成本) ÷ 调整后成本
+
+    :param dividends: load_dividends 的事件列表（ex_dividend_date/cash_per_10/bonus_per_10/conversion_per_10）
+    :param raw_close_map/fwd_close_map: {YYYY-MM-DD: 收盘价}（不复权/前复权）
+    :param raw_end_close: 期末不复权收盘价（未平仓批次的估值价）
+    :return: 调整结果 dict；无买入批次时为 None
+    """
+    def raw_price(t: Trade) -> float:
+        d = pd.Timestamp(t.date).strftime("%Y-%m-%d")
+        raw, fwd = raw_close_map.get(d), fwd_close_map.get(d)
+        if raw is None or not fwd:
+            return t.price
+        return t.price * raw / fwd
+
+    lots = pair_lots(trades)
+    if not lots:
+        return None
+    events = sorted(dividends, key=lambda e: e["ex_dividend_date"])
+
+    invested_sum = 0.0        # Σ 实际投入（实际成交价 × 股数）
+    buy_shares_sum = 0
+    adj_cost_sum = 0.0        # Σ 调整后成本 × 调整后股数
+    adj_shares_sum = 0.0
+    dividend_cash = 0.0
+    bonus_shares = 0.0
+    weighted_return = 0.0
+
+    for lot in lots:
+        buy, sell = lot["buy"], lot["sell"]
+        buy_raw = raw_price(buy)
+        exit_raw = raw_price(sell) if sell else raw_end_close
+        buy_day = pd.Timestamp(buy.date)
+        window_end = pd.Timestamp(sell.date) if sell else None
+
+        price = buy_raw
+        shares = float(buy.shares)
+        for e in events:
+            ed = pd.Timestamp(e["ex_dividend_date"])
+            if ed <= buy_day:
+                continue
+            if window_end is not None and ed > window_end:
+                break
+            dps = e["cash_per_10"] / 10 * (1 - tax_rate)
+            ratio = ((e["bonus_per_10"] or 0) + (e["conversion_per_10"] or 0)) / 10
+            if dps == 0 and ratio == 0:
+                continue
+            dividend_cash += shares * dps
+            new_shares = shares * (1 + ratio)
+            bonus_shares += new_shares - shares
+            shares = new_shares
+            price = (price - dps) / (1 + ratio)
+
+        invested = buy_raw * buy.shares
+        lot_return_pct = (exit_raw - price) / price * 100 if price > 0 else 0.0
+        invested_sum += invested
+        buy_shares_sum += buy.shares
+        adj_cost_sum += price * shares
+        adj_shares_sum += shares
+        weighted_return += lot_return_pct * invested
+
+    if invested_sum == 0 or adj_shares_sum == 0:
+        return None
+    return {
+        "raw_cost_avg": invested_sum / buy_shares_sum if buy_shares_sum else None,
+        "adjusted_cost_avg": adj_cost_sum / adj_shares_sum,
+        "dividend_cash": dividend_cash,
+        "bonus_shares": bonus_shares,
+        "adjusted_return_pct": weighted_return / invested_sum,
+    }
 
 
 def simulate_buy_and_hold(df: pd.DataFrame, initial_capital: float) -> StrategyResult:
@@ -245,7 +347,8 @@ def find_swing_points(df: pd.DataFrame, window: int = 5) -> Tuple[List[int], Lis
 
 
 def analyze_period(
-    df: pd.DataFrame, stock_code: str, stock_name: str, initial_capital: float
+    df: pd.DataFrame, stock_code: str, stock_name: str, initial_capital: float,
+    raw_df: Optional[pd.DataFrame] = None, dividends: Optional[list] = None,
 ):
     start_close = df.iloc[0]["close"]
     end_close = df.iloc[-1]["close"]
@@ -259,6 +362,23 @@ def analyze_period(
         simulate_optimal_trade(df, initial_capital),
         simulate_ma_crossover(df, initial_capital),
     ]
+
+    # 除权除息成本调整：每笔买入成本按持有窗口内分红/送转逐次调整
+    # （dividends/raw_df 任一不可用时保持 None，报告回退前复权成本口径）
+    if dividends is not None and raw_df is not None and not raw_df.empty:
+        raw_close_map = {
+            pd.Timestamp(r["date"]).strftime("%Y-%m-%d"): float(r["close"])
+            for _, r in raw_df.iterrows()
+        }
+        fwd_close_map = {
+            pd.Timestamp(r["date"]).strftime("%Y-%m-%d"): float(r["close"])
+            for _, r in df.iterrows()
+        }
+        raw_end_close = float(raw_df.iloc[-1]["close"])
+        for s in strategies:
+            s.cost_adjust = adjust_cost_by_dividends(
+                s.trades, dividends, raw_close_map, fwd_close_map, raw_end_close
+            )
 
     summary = {
         "stock_code": stock_code,
@@ -292,8 +412,14 @@ def print_report(summary: dict, saver=None):
                  width=70, indent=11,
                  extra=[f"           分析期间: {summary['start_date']} 至 {summary['end_date']}"])
 
+    adjusted = any(s.cost_adjust for s in summary["strategies"])
+
     log("\n1. 区间行情概览:")
-    log(f"   行情口径: 前复权（分红送转已还原，成本价与收益率均为前复权口径）")
+    if adjusted:
+        log(f"   行情口径: 前复权（分红送转已还原）")
+        log(f"   成本口径: 除权除息调整（每笔买入成本按持有期分红/送转逐次调整，分红按税前计）")
+    else:
+        log(f"   行情口径: 前复权（分红送转已还原，成本价与收益率均为前复权口径）")
     log(f"   交易日数: {summary['trading_days']} 天")
     log(f"   期初收盘: {summary['start_close']:.2f}")
     log(f"   期末收盘: {summary['end_close']:.2f}")
@@ -311,6 +437,24 @@ def print_report(summary: dict, saver=None):
 
     log("\n3. 策略模拟对比:")
     for strategy in summary["strategies"]:
+        ca = strategy.cost_adjust
+        if ca:
+            cost_fields = [
+                ("实际成本均价", f"{ca['raw_cost_avg']:.4f} 元/股"
+                               "（不复权成交价，各笔买入金额合计 / 股数合计）"),
+                ("除权除息后成本均价", f"{ca['adjusted_cost_avg']:.4f} 元/股"
+                                     "（每笔成本按持有期分红/送转逐次调整：分红降成本、送转摊薄）"),
+                ("持有期分红送转", f"现金分红 {ca['dividend_cash']:,.2f} 元（税前），"
+                                 f"送转 {ca['bonus_shares']:,.0f} 股"),
+                ("调整后收益率", f"{ca['adjusted_return_pct']:.2f}%"
+                               "（按调整后平均成本计算：(卖出/期末价 − 调整后成本) ÷ 调整后成本，"
+                               "多批次按实际投入加权）"),
+            ]
+        else:
+            cost_fields = [
+                ("前复权成本均价", f"{strategy.cost_avg:.4f} 元/股"
+                                  "（各笔买入金额合计 / 股数合计，行情为前复权口径）"),
+            ]
         print_strategy_block(
             log,
             strategy.name,
@@ -318,9 +462,7 @@ def print_report(summary: dict, saver=None):
                 ("最终资产", f"{strategy.final_value:,.2f} 元"),
                 ("收益率", f"{strategy.return_pct:.2f}%"),
                 ("最大回撤", f"{strategy.max_drawdown_pct:.2f}%"),
-                ("前复权成本均价", f"{strategy.cost_avg:.4f} 元/股"
-                                  "（各笔买入金额合计 / 股数合计，行情为前复权口径）"),
-            ],
+            ] + cost_fields,
             trades=[(t.date.strftime('%Y-%m-%d'), t.action, t.shares,
                      f"{t.price:.2f}", f"{t.amount:,.2f}", t.reason)
                     for t in strategy.trades] or None,
@@ -486,8 +628,30 @@ async def run_analysis(
     )
     saver.log(f"成功获取 {len(df)} 条K线数据（{stock_name}）")
 
+    # 除权除息成本调整用数据：不复权行情 + MySQL 分红事件
+    # （任一不可用时降级，报告回退前复权成本口径，不影响主流程）
+    raw_df = None
+    try:
+        raw_df, _ = await fetch_kline_df(
+            stock_code, start_date, end_date, stock_name=stock_name,
+            adjust=AdjustPriceType.NONE, raise_on_empty=False,
+        )
+    except Exception as exc:
+        saver.log(f"不复权行情获取失败（成本价将不做除权除息调整）: {exc}")
+    dividends = None
+    try:
+        Base.metadata.create_all(bind=engine)
+        db = SessionLocal()
+        try:
+            dividends = ensure_dividends(db, stock_code, force_sync=False, log=saver.log)
+        finally:
+            db.close()
+    except Exception as exc:
+        saver.log(f"分红数据不可用（成本价将不做除权除息调整）: {exc}")
+
     summary, buy_points, sell_points = analyze_period(
-        df, stock_code, stock_name, initial_capital
+        df, stock_code, stock_name, initial_capital,
+        raw_df=raw_df, dividends=dividends,
     )
     print_report(summary, saver)
 

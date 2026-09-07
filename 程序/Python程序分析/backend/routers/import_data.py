@@ -5,42 +5,16 @@ import time
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 
 # 确保项目根在 sys.path 中以导入 config
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from config.datasource import set_data_source, get_data_source
+from schemas import ImportQuotesRequest, ImportBasicInfoRequest, ImportResult
 
 
 router = APIRouter(prefix="/api/import", tags=["import"])
 
-
-# ============================================================
-#  Pydantic 模型
-# ============================================================
-
-class ImportQuotesRequest(BaseModel):
-    stock_codes: List[str] = Field(..., min_length=1, description="股票代码列表")
-    start_date: str = Field("2006-01-01", description="起始日期 YYYY-MM-DD")
-    end_date: Optional[str] = Field(None, description="结束日期 YYYYMMDD，默认今天")
-    data_source: str = Field("tickflow", description="数据源: tickflow / eastmoney / akshare")
-    period: str = Field("daily", description="K线周期: daily / weekly / monthly")
-
-
-class ImportBasicInfoRequest(BaseModel):
-    """基础信息导入：同步股票列表 + 逐只拉取核心数据"""
-    stock_codes: Optional[List[str]] = Field(None, description="要导入核心数据的股票代码列表；为 None 则只同步全量股票列表")
-    sync_stock_list: bool = Field(True, description="是否先同步全市场股票代码列表")
-    data_source: str = Field("tickflow", description="数据源: tickflow / eastmoney / akshare")
-
-
-class ImportResult(BaseModel):
-    status: str
-    total: int = 0
-    ok: int = 0
-    fail: int = 0
-    details: List[dict] = []
 
 
 # ============================================================

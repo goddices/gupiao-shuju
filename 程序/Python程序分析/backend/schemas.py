@@ -1,8 +1,8 @@
 """Pydantic 请求和响应模型"""
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, List
+from pydantic import BaseModel, Field
 
 
 # ---- 日K线行情 ----
@@ -296,3 +296,27 @@ class HolidayAnalysisResponse(BaseModel):
     holidays: list[str]  # 节日名称列表
     analysis: list[SingleHolidayAnalysis]
     summary: list[dict]  # 综合对比摘要
+
+
+# ---- 数据导入（/api/import） ----
+class ImportQuotesRequest(BaseModel):
+    stock_codes: List[str] = Field(..., min_length=1, description="股票代码列表")
+    start_date: str = Field("2006-01-01", description="起始日期 YYYY-MM-DD")
+    end_date: Optional[str] = Field(None, description="结束日期 YYYYMMDD，默认今天")
+    data_source: str = Field("tickflow", description="数据源: tickflow / eastmoney / akshare")
+    period: str = Field("daily", description="K线周期: daily / weekly / monthly")
+
+
+class ImportBasicInfoRequest(BaseModel):
+    """基础信息导入：同步股票列表 + 逐只拉取核心数据"""
+    stock_codes: Optional[List[str]] = Field(None, description="要导入核心数据的股票代码列表；为 None 则只同步全量股票列表")
+    sync_stock_list: bool = Field(True, description="是否先同步全市场股票代码列表")
+    data_source: str = Field("tickflow", description="数据源: tickflow / eastmoney / akshare")
+
+
+class ImportResult(BaseModel):
+    status: str
+    total: int = 0
+    ok: int = 0
+    fail: int = 0
+    details: List[dict] = []

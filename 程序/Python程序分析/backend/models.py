@@ -24,7 +24,7 @@ class StockDailyQuote(Base):
     amount = Column(Numeric(20, 4), nullable=False)
     created_at = Column(TIMESTAMP, server_default=None)
 
-    # 复权价格（由 get_adjust_price.py 填充）
+    # 复权价格（由 backend/data_fetcher.py 从数据源直接拉取填充；旧 get_adjust_price.py 已归档 legacy/）
     forward_open = Column(Numeric(12, 4))
     forward_high = Column(Numeric(12, 4))
     forward_low = Column(Numeric(12, 4))

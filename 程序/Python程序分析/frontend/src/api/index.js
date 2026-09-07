@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  // 可用 .env 的 VITE_API_BASE 覆盖（默认本地开发后端）
+  baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:8000/api',
   timeout: 120000,
 })
 

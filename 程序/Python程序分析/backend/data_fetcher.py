@@ -56,7 +56,7 @@ def _quote_to_dataframe(quote) -> pd.DataFrame:
 async def _fetch_all_async(stock_code: str, market: str, end_date: str, db_cookies: list = None) -> dict:
     """
     异步并行拉取三种复权类型的行情数据。
-    数据源由 config/datasource.py 配置决定（eastmoney / akshare），不自动切换。
+    数据源由 config/datasource.py 配置决定（tickflow / eastmoney / akshare），不自动切换。
     返回 {"none": DataFrame, "forward": DataFrame, "backward": DataFrame,
           "sources": {"none": 数据源, "forward": 数据源, "backward": 数据源}}
     """

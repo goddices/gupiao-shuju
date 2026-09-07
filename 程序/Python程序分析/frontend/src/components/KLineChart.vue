@@ -183,20 +183,6 @@ function render() {
   chart.setOption(option, true)
 }
 
-onMounted(() => {
-  if (chartRef.value) {
-    chart = echarts.init(chartRef.value)
-    render()
-  }
-})
-
-onUnmounted(() => {
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
-})
-
 watch(() => props.data, () => {
   render()
 }, { deep: true })
@@ -205,10 +191,20 @@ watch(() => props.data, () => {
 const resizeObserver = new ResizeObserver(() => {
   chart?.resize()
 })
+
 onMounted(() => {
-  if (chartRef.value) resizeObserver.observe(chartRef.value)
+  if (chartRef.value) {
+    chart = echarts.init(chartRef.value)
+    render()
+    resizeObserver.observe(chartRef.value)
+  }
 })
+
 onUnmounted(() => {
   resizeObserver.disconnect()
+  if (chart) {
+    chart.dispose()
+    chart = null
+  }
 })
 </script>

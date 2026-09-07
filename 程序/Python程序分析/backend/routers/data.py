@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 
 @router.post("/fetch", response_model=FetchResponse)
 def trigger_fetch(req: FetchRequest, db: Session = Depends(get_db)):
-    """触发从东方财富拉取股票数据"""
+    """触发从当前数据源（config.datasource）拉取股票数据（遗留端点，建议用 /api/import/quotes）"""
     if not req.stock_codes:
         raise HTTPException(status_code=400, detail="stock_codes 不能为空")
 

@@ -244,6 +244,7 @@ function onSearchStock(val) {
       }))
     } catch (e) {
       console.error(e)
+      message.error('股票搜索失败，请稍后重试')
     }
   }, 300)
 }

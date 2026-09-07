@@ -21,6 +21,7 @@ EXPORT_TABLES = [
     "stock_info",
     "stock_core_data",
     "stock_dividend_events",
+    "stock_dividend_detail",
     "stock_cookies",
     "simulation_account",
     "simulation_position",
