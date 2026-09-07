@@ -308,6 +308,19 @@ def simulate_dividend_reinvest(
             line["forward_cost_avg"] = round(fwd_cost / bought_shares, 4) if bought_shares else None
             line["forward_return_pct"] = (round((fwd_value / fwd_cost - 1) * 100, 2)
                                           if fwd_cost > 0 else None)
+        # 摊薄成本口径（除权除息成本调整）：分红现金冲减买入成本，
+        # 摊薄成本价 = (Σ买入金额 − Σ分红现金税后) ÷ 期末股数（含送转）；
+        # 全程持有，与逐笔链式调整「成本=(成本−每股分红)/(1+送转比)」代数等价；
+        # 分红冲抵全部买入成本（已回本）时成本价/收益率记 None
+        adjusted_cost = sum(t["amount"] for t in trades) - total_div
+        line["adjusted_cost"] = round(adjusted_cost, 2)
+        if final_shares > 0 and adjusted_cost > 0:
+            adj_avg = adjusted_cost / final_shares
+            line["adjusted_cost_avg"] = round(adj_avg, 4)
+            line["adjusted_return_pct"] = round((last_close - adj_avg) / adj_avg * 100, 2)
+        else:
+            line["adjusted_cost_avg"] = None
+            line["adjusted_return_pct"] = None
         return line
 
     summary = {
@@ -1014,6 +1027,19 @@ def simulate_staged_dip_buy(
             line["forward_cost_avg"] = round(fwd_cost / bought_shares, 4) if bought_shares else None
             line["forward_return_pct"] = (round((fwd_value / fwd_cost - 1) * 100, 2)
                                           if fwd_cost > 0 else None)
+        # 摊薄成本口径（除权除息成本调整）：分红现金冲减买入成本，
+        # 摊薄成本价 = (Σ买入金额 − Σ分红现金税后) ÷ 期末股数（含送转）；
+        # 全程持有，与逐笔链式调整「成本=(成本−每股分红)/(1+送转比)」代数等价；
+        # 分红冲抵全部买入成本（已回本）时成本价/收益率记 None
+        adjusted_cost = sum(t["amount"] for t in trades) - total_div
+        line["adjusted_cost"] = round(adjusted_cost, 2)
+        if final_shares > 0 and adjusted_cost > 0:
+            adj_avg = adjusted_cost / final_shares
+            line["adjusted_cost_avg"] = round(adj_avg, 4)
+            line["adjusted_return_pct"] = round((last_close - adj_avg) / adj_avg * 100, 2)
+        else:
+            line["adjusted_cost_avg"] = None
+            line["adjusted_return_pct"] = None
         return line
 
     st_assets = [e["staged_asset"] for e in equity_curve]

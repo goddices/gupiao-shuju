@@ -44,9 +44,15 @@ def fmt_annual(value) -> str:
 
 
 def print_strategy_compare(log, lines) -> None:
-    """三策略对比两行版式：lines=[(策略名, 策略dict), ...] → rows 构建 + print_compare_rows"""
-    rows = [
-        {
+    """三策略对比两行版式：lines=[(策略名, 策略dict), ...] → rows 构建 + print_compare_rows
+
+    任意一线带 adjusted_cost_avg（引擎摊薄成本口径）时，追加第三行
+    「摊薄成本价 / 调整后收益率」（分红现金冲减买入成本口径，与 模拟持仓 一致）。
+    """
+    has_adj = any(s.get("adjusted_cost_avg") is not None for _name, s in lines)
+    rows = []
+    for name, s in lines:
+        row = {
             "name": name,
             "line1": [
                 f"期末总资产: {s['final_asset']:>14,.2f} 元",
@@ -60,8 +66,16 @@ def print_strategy_compare(log, lines) -> None:
                 f"累计分红: {s['total_dividends']:>12,.2f} 元",
             ],
         }
-        for name, s in lines
-    ]
+        if has_adj:
+            adj_avg = s.get("adjusted_cost_avg")
+            if adj_avg is not None:
+                row["line3"] = [
+                    f"摊薄成本价: {adj_avg:>10.4f} 元/股（分红冲减成本后）",
+                    f"调整后收益率: {s['adjusted_return_pct']:>8.2f}%（期末收盘 vs 摊薄成本）",
+                ]
+            else:
+                row["line3"] = ["摊薄成本价: 分红已冲抵全部买入成本（已回本），调整后收益率不适用"]
+        rows.append(row)
     print_compare_rows(log, rows)
 
 

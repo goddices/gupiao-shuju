@@ -141,6 +141,20 @@
                     <span class="mini-value">{{ fmtMoney(line.data.forward_cost) }} 元 / {{ line.data.forward_cost_avg.toFixed(4) }} 元/股</span>
                   </div>
                 </a-col>
+                <a-col :span="24" v-if="line.data.adjusted_cost_avg != null">
+                  <div class="mini-item">
+                    <span class="mini-label">摊薄成本价（分红冲减成本后）</span>
+                    <span class="mini-value">{{ line.data.adjusted_cost_avg.toFixed(4) }} 元/股</span>
+                  </div>
+                </a-col>
+                <a-col :span="24" v-if="line.data.adjusted_return_pct != null">
+                  <div class="mini-item">
+                    <span class="mini-label">调整后收益率（期末收盘 vs 摊薄成本）</span>
+                    <span :class="['mini-value', line.data.adjusted_return_pct >= 0 ? 'up' : 'down']">
+                      {{ line.data.adjusted_return_pct.toFixed(2) }}%
+                    </span>
+                  </div>
+                </a-col>
               </a-row>
             </a-card>
           </a-col>

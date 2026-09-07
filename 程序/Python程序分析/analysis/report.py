@@ -37,13 +37,16 @@ def print_footer(log: LogFunc, width: int = 76) -> None:
 def print_compare_rows(log: LogFunc, rows: Sequence[dict]) -> None:
     """策略对比两行版式（红利再投/红利再投增强版/大跌分批买入共用）
 
-    rows: [{"name": str, "line1": [片段, ...], "line2": [片段, ...]}, ...]
+    rows: [{"name": str, "line1": [片段, ...], "line2": [片段, ...],
+            "line3": [片段, ...](可选，摊薄成本口径行)}, ...]
     片段为预格式化字符串（如 "期末总资产: 1,234.56 元"），片段间固定两空格连接；
-    首行前导 "   【name】"、第二行 12 空格缩进由本函数统一输出。
+    首行前导 "   【name】"、其余行 12 空格缩进由本函数统一输出。
     """
     for r in rows:
         log("   【" + r["name"] + "】" + "  ".join(r["line1"]))
         log("            " + "  ".join(r["line2"]))
+        if r.get("line3"):
+            log("            " + "  ".join(r["line3"]))
 
 
 def print_strategy_block(log: LogFunc, name: str,
