@@ -7,13 +7,17 @@ TickFlow 数据源实现 —— 与 emdata 完全一致的接口
 接口对应关系:
     TickFlowQuoteReader  ←→ EastmoneyQuoteReader / AKShareQuoteReader
 
+底层统一走批量接口 /v1/klines/batch:
+    read_quotes_batch[_async]  批量获取多只股票（核心实现）
+    read_quote[_async]         单只获取，内部委托批量（symbols 只传一个）
+
 API Key 默认使用 tickflow方式.md 中提供的 key，
 可通过环境变量 TICKFLOW_API_KEY 覆盖。
 """
 
 import os
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, Any, Dict, List
 
 import pandas as pd
 
@@ -144,12 +148,207 @@ class TickFlowQuoteReader:
     """
     TickFlow 行情数据读取器
     接口与 EastmoneyQuoteReader / AKShareQuoteReader 完全一致
+
+    底层统一调用批量接口 /v1/klines/batch：
+    - read_quotes_batch[_async]：批量获取多只股票（核心实现）
+    - read_quote[_async]：单只获取，内部委托批量（symbols 只传一个）
     """
 
     def __init__(self, mappers: QuoteMappers = None, cookie: str = None, db_cookies: list = None):
         self.mappers = mappers or QuoteMappers()
         self.api_key = _get_api_key()
         # cookie/db_cookies 参数仅保留兼容性，TickFlow 不需要
+
+    # --------------------------------------------------------
+    #  内部工具
+    # --------------------------------------------------------
+
+    @staticmethod
+    def _to_symbols(market: str, stock_codes: List[str]) -> List[str]:
+        """stock_code 列表 → TickFlow symbol 列表（已带 .SH/.SZ 后缀的原样保留）"""
+        return [_code_to_symbol(code, market) for code in stock_codes]
+
+    @staticmethod
+    def _batch_params(adjust_type, period_type, end_date: str, limit: int) -> Dict[str, Any]:
+        """构造批量接口公共参数（period/count/end_time/adjust），None 值不下发"""
+        params = {
+            "period": _period_to_tickflow(period_type),
+            "count": min(limit, MAX_KLINES),
+            "end_time": _end_date_to_ms(end_date),
+            "adjust": _adjust_to_tickflow(adjust_type),
+        }
+        return {k: v for k, v in params.items() if v is not None}
+
+    @staticmethod
+    def _is_batch_permission_error(e: Exception) -> bool:
+        """是否批量接口权限不足（当前 key 套餐不含批量权限，NO_KLINE_BATCH_PERMISSION）"""
+        return (
+            type(e).__name__ == "PermissionError"
+            or "批量查询权限" in str(e)
+            or "NO_KLINE_BATCH_PERMISSION" in str(e)
+        )
+
+    async def _fetch_each_async(
+        self, symbols: List[str], params: Dict[str, Any]
+    ) -> Dict[str, pd.DataFrame]:
+        """批量接口不可用时的兜底：逐只并发调用单条 K 线接口"""
+        import asyncio
+
+        from tickflow import AsyncTickFlow
+
+        async def fetch_one(client, symbol):
+            try:
+                return symbol, await client.klines.get(
+                    symbol, **params, as_dataframe=True
+                )
+            except Exception as e:
+                print(f"TickFlow 获取行情失败 {symbol}: {e}")
+                return symbol, None
+
+        async with AsyncTickFlow(api_key=self.api_key) as client:
+            pairs = await asyncio.gather(*(fetch_one(client, s) for s in symbols))
+        return {symbol: df for symbol, df in pairs}
+
+    def _fetch_each(
+        self, symbols: List[str], params: Dict[str, Any]
+    ) -> Dict[str, pd.DataFrame]:
+        """批量接口不可用时的兜底：逐只调用单条 K 线接口"""
+        from tickflow import TickFlow
+
+        dfs: Dict[str, pd.DataFrame] = {}
+        client = TickFlow(api_key=self.api_key)
+        try:
+            for symbol in symbols:
+                try:
+                    dfs[symbol] = client.klines.get(
+                        symbol, **params, as_dataframe=True
+                    )
+                except Exception as e:
+                    print(f"TickFlow 获取行情失败 {symbol}: {e}")
+                    dfs[symbol] = None
+        finally:
+            if hasattr(client, "close"):
+                try:
+                    client.close()
+                except Exception:
+                    pass
+        return dfs
+
+    @staticmethod
+    def _dfs_to_quotes(
+        stock_codes: List[str],
+        symbols: List[str],
+        dfs: Optional[Dict[str, pd.DataFrame]],
+        period_type,
+    ) -> Dict[str, StockQuote]:
+        """批量返回的 {symbol: DataFrame} → {stock_code: StockQuote}（无数据的不出现）"""
+        quotes: Dict[str, StockQuote] = {}
+        for code, symbol in zip(stock_codes, symbols):
+            df = dfs.get(symbol) if dfs else None
+            quote = _df_to_quote(df, period_type)
+            if quote is not None:
+                quotes[code] = quote
+        return quotes
+
+    # --------------------------------------------------------
+    #  批量获取（核心实现）
+    # --------------------------------------------------------
+
+    async def read_quotes_batch_async(
+        self,
+        market: str,
+        stock_codes: List[str],
+        adjust_type: AdjustPriceType,
+        period_type: PeriodType,
+        end_date: str = "20500101",
+        limit: int = 744,
+        token: Any = None,
+    ) -> Dict[str, StockQuote]:
+        """
+        批量异步获取多只股票行情（/v1/klines/batch，SDK 自动分块并发）。
+
+        返回 {stock_code: StockQuote}；获取失败或无数据的股票不出现在结果中。
+        """
+        from tickflow import AsyncTickFlow
+
+        if not stock_codes:
+            return {}
+
+        symbols = self._to_symbols(market, stock_codes)
+        params = self._batch_params(adjust_type, period_type, end_date, limit)
+
+        try:
+            async with AsyncTickFlow(api_key=self.api_key) as client:
+                dfs = await client.klines.batch(
+                    symbols,
+                    **params,
+                    as_dataframe=True,
+                )
+        except Exception as e:
+            if self._is_batch_permission_error(e):
+                # 当前 key 无批量权限：回退为逐只获取（key 升级后自动走批量）
+                print(f"TickFlow 批量接口无权限，回退为逐只获取: {e}")
+                dfs = await self._fetch_each_async(symbols, params)
+            else:
+                print(f"TickFlow 批量获取行情失败 {symbols}: {e}")
+                return {}
+
+        if not dfs:
+            # 异步 SDK 会吞掉批量错误返回空（如无批量权限），回退逐只获取
+            print("TickFlow 批量接口返回空（可能无批量权限），回退为逐只获取")
+            dfs = await self._fetch_each_async(symbols, params)
+
+        return self._dfs_to_quotes(stock_codes, symbols, dfs, period_type)
+
+    def read_quotes_batch(
+        self,
+        market: str,
+        stock_codes: List[str],
+        adjust_type: AdjustPriceType,
+        period_type: PeriodType,
+        end_date: str = "20500101",
+        limit: int = 744,
+    ) -> Dict[str, StockQuote]:
+        """
+        批量同步获取多只股票行情（/v1/klines/batch，SDK 自动分块并发）。
+
+        返回 {stock_code: StockQuote}；获取失败或无数据的股票不出现在结果中。
+        """
+        from tickflow import TickFlow
+
+        if not stock_codes:
+            return {}
+
+        symbols = self._to_symbols(market, stock_codes)
+        params = self._batch_params(adjust_type, period_type, end_date, limit)
+
+        client = TickFlow(api_key=self.api_key)
+        try:
+            dfs = client.klines.batch(
+                symbols,
+                **params,
+                as_dataframe=True,
+            )
+        except Exception as e:
+            if self._is_batch_permission_error(e):
+                # 当前 key 无批量权限：回退为逐只获取（key 升级后自动走批量）
+                print(f"TickFlow 批量接口无权限，回退为逐只获取: {e}")
+                dfs = self._fetch_each(symbols, params)
+            else:
+                print(f"TickFlow 批量获取行情失败 {symbols}: {e}")
+                return {}
+        finally:
+            if hasattr(client, "close"):
+                try:
+                    client.close()
+                except Exception:
+                    pass
+
+        return self._dfs_to_quotes(stock_codes, symbols, dfs, period_type)
+
+    # --------------------------------------------------------
+    #  单只获取（委托批量，symbols 只传一个）
+    # --------------------------------------------------------
 
     async def read_quote_async(
         self,
@@ -162,33 +361,14 @@ class TickFlowQuoteReader:
         token: Any = None,
     ) -> Optional[StockQuote]:
         """
-        异步获取股票行情数据（TickFlow 实现）
+        异步获取单只股票行情数据（内部走批量接口，symbols 只传一个）
 
         参数与 EastmoneyQuoteReader.read_quote_async 完全一致。
         """
-        from tickflow import AsyncTickFlow
-
-        symbol = _code_to_symbol(stock_code, market)
-        period = _period_to_tickflow(period_type)
-        adjust = _adjust_to_tickflow(adjust_type)
-        end_ms = _end_date_to_ms(end_date)
-        count = min(limit, MAX_KLINES)
-
-        try:
-            async with AsyncTickFlow(api_key=self.api_key) as client:
-                df = await client.klines.get(
-                    symbol,
-                    period=period,
-                    count=count,
-                    end_time=end_ms,
-                    adjust=adjust,
-                    as_dataframe=True,
-                )
-        except Exception as e:
-            print(f"TickFlow 获取行情失败 {symbol}: {e}")
-            return None
-
-        return _df_to_quote(df, period_type)
+        quotes = await self.read_quotes_batch_async(
+            market, [stock_code], adjust_type, period_type, end_date, limit, token,
+        )
+        return quotes.get(stock_code)
 
     async def read_quote_from_stream_async(
         self, stream: Any, token: Any = None
@@ -207,33 +387,8 @@ class TickFlowQuoteReader:
         end_date: str = "20500101",
         limit: int = 744,
     ) -> Optional[StockQuote]:
-        """同步获取股票行情数据"""
-        from tickflow import TickFlow
-
-        symbol = _code_to_symbol(stock_code, market)
-        period = _period_to_tickflow(period_type)
-        adjust = _adjust_to_tickflow(adjust_type)
-        end_ms = _end_date_to_ms(end_date)
-        count = min(limit, MAX_KLINES)
-
-        client = TickFlow(api_key=self.api_key)
-        try:
-            df = client.klines.get(
-                symbol,
-                period=period,
-                count=count,
-                end_time=end_ms,
-                adjust=adjust,
-                as_dataframe=True,
-            )
-        except Exception as e:
-            print(f"TickFlow 获取行情失败 {symbol}: {e}")
-            return None
-        finally:
-            if hasattr(client, "close"):
-                try:
-                    client.close()
-                except Exception:
-                    pass
-
-        return _df_to_quote(df, period_type)
+        """同步获取单只股票行情数据（内部走批量接口，symbols 只传一个）"""
+        quotes = self.read_quotes_batch(
+            market, [stock_code], adjust_type, period_type, end_date, limit,
+        )
+        return quotes.get(stock_code)

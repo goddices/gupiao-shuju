@@ -13,6 +13,10 @@ cd "$SCRIPT_DIR"
 DATA_SOURCE="${1:-}"
 TODAY=$(date +%Y%m%d)
 
+# TickFlow API Key: 环境变量已配置时优先，否则用这里的默认值
+: "${TICKFLOW_API_KEY:=tk_aef1f7190ff44f32b5226f796a3c38ea}"
+export TICKFLOW_API_KEY
+
 # 数据源参数生效:通过环境变量传给 Python（config/datasource.py 读取）
 if [ -n "$DATA_SOURCE" ]; then
     export DATA_SOURCE="$DATA_SOURCE"
