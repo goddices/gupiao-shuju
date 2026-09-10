@@ -36,5 +36,8 @@ df = tf.klines.get("600000.SH", period="1d", count=1000, adjust="backward_additi
 period 我猜有 1d 1w 1m 1q 1y
 
 # 批量获取多只股票的 K 线
+# 注意: 批量接口 /v1/klines/batch 需要额外权限，当前 key 无权限
+# （NO_KLINE_BATCH_PERMISSION）。项目里统一走单条接口逐只获取，
+# 见 emdata/tickflow_reader.py；key 升级后可从 git 提交 503ef79 恢复批量实现。
 symbols = ["600000.SH", "000001.SZ", "600519.SH"]
 

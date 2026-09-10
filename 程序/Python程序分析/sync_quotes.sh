@@ -1,5 +1,5 @@
 #!/bin/bash
-# 同步6只默认股票的日K线行情到数据库（不复权 + 前复权 + 后复权）
+# 同步配置文件中的股票日K线行情到数据库（不复权 + 前复权 + 后复权）
 # 复权数据写入 forward_* / backward_* 字段；主数据源失败时自动用 AKShare 兜底
 # 用法: bash sync_quotes.sh [数据源]
 #       bash sync_quotes.sh tickflow    # TickFlow
@@ -22,9 +22,35 @@ if [ -n "$DATA_SOURCE" ]; then
     export DATA_SOURCE="$DATA_SOURCE"
 fi
 
-# 默认6只股票: 中国石油 中国移动 上证指数 贵州茅台 寒武纪 中芯国际
-STOCKS=("601857" "600941" "000001" "600519" "688256" "688981")
-NAMES=("中国石油" "中国移动" "上证指数" "贵州茅台" "寒武纪" "中芯国际")
+# 股票列表从配置文件读取（含 ignore 字段，循环时判断，为 true 则跳过同步）
+STOCKS_FILE="$SCRIPT_DIR/config/sync_stocks.yaml"
+
+STOCKS=()
+NAMES=()
+IGNORES=()
+while IFS='|' read -r code name ignore; do
+    STOCKS+=("$code")
+    NAMES+=("$name")
+    IGNORES+=("$ignore")
+done < <(python3 - "$STOCKS_FILE" <<'PYEOF'
+import sys, yaml
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+except FileNotFoundError:
+    sys.exit(f"配置文件不存在: {sys.argv[1]}")
+
+for s in data.get("stocks", []):
+    ignore = "true" if s.get("ignore", False) else "false"
+    print(f"{s['code']}|{s['name']}|{ignore}")
+PYEOF
+)
+
+if [ ${#STOCKS[@]} -eq 0 ]; then
+    echo "错误: 未从 $STOCKS_FILE 读到任何待同步股票"
+    exit 1
+fi
 
 echo "=========================================="
 echo "同步股票行情"
@@ -40,10 +66,17 @@ echo ""
 
 OK=0
 FAIL=0
+SKIP=0
 
 for i in "${!STOCKS[@]}"; do
     code="${STOCKS[$i]}"
     name="${NAMES[$i]}"
+
+    if [ "${IGNORES[$i]}" = "true" ]; then
+        echo "[$code $name] 跳过 (ignore: true)"
+        ((SKIP++))
+        continue
+    fi
 
     echo -n "[$code $name] "
     python3 -c "
@@ -80,5 +113,5 @@ done
 
 echo ""
 echo "=========================================="
-echo "同步完成: $OK 成功, $FAIL 失败"
+echo "同步完成: $OK 成功, $FAIL 失败, $SKIP 跳过"
 echo "=========================================="

@@ -1,0 +1,27 @@
+# sync_quotes.sh 同步股票列表
+#
+# 字段说明:
+#   code:   股票/指数代码（必填）
+#   name:   名称（必填）
+#   ignore: 是否跳过同步，默认 false；设为 true 则保留配置但不同步
+#
+# 示例（跳过某只股票）:
+#   - code: "600519"
+#     name: "贵州茅台"
+#     ignore: true
+
+stocks:
+  - code: "601857"
+    name: "中国石油"
+  - code: "600941"
+    name: "中国移动"
+  - code: "000001"
+    name: "上证指数"
+  - code: "600519"
+    name: "贵州茅台"
+  - code: "688256"
+    name: "寒武纪"
+    ignore: true
+  - code: "688981"
+    name: "中芯国际"
+    ignore: true
