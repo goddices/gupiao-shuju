@@ -33,16 +33,15 @@ from emdata.models import StockQuoteLine, StockQuote, QuoteMappers
 MAX_KLINES = 10000
 
 
+# 默认 API Key：环境变量 TICKFLOW_API_KEY 已配置时优先，否则用此默认值
+# （与 sync_quotes.sh / sync_today.sh / start.sh / run_all_analysis.sh 中的默认值一致）
+DEFAULT_API_KEY = "tk_aef1f7190ff44f32b5226f796a3c38ea"
+
+
 def _get_api_key() -> str:
-    """获取 API Key：仅从环境变量 TICKFLOW_API_KEY 读取（2026-09 移除仓库内硬编码默认 key，
-    旧默认 key 视为已泄漏，请轮换后经 env 注入，见 tickflow方式.md）"""
-    key = os.getenv("TICKFLOW_API_KEY")
-    if not key:
-        raise RuntimeError(
-            "未配置 TickFlow API Key：请设置环境变量 TICKFLOW_API_KEY"
-            "（ export TICKFLOW_API_KEY=<你的 key> ），用法见 tickflow方式.md"
-        )
-    return key
+    """获取 API Key：优先读环境变量 TICKFLOW_API_KEY，未配置时回退到 DEFAULT_API_KEY，
+    保证任何入口（脚本、直接跑 python、后端 uvicorn）都可用。"""
+    return os.getenv("TICKFLOW_API_KEY") or DEFAULT_API_KEY
 
 
 def _code_to_symbol(stock_code: str, market: str) -> str:

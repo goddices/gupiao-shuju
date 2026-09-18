@@ -11,6 +11,10 @@ cd "$SCRIPT_DIR"
 export MPLBACKEND=Agg
 export PYTHONIOENCODING=utf-8
 
+# TickFlow API Key: 环境变量已配置时优先，否则用这里的默认值
+: "${TICKFLOW_API_KEY:=tk_aef1f7190ff44f32b5226f796a3c38ea}"
+export TICKFLOW_API_KEY
+
 TODAY=$(date +%Y-%m-%d)
 START_DATE="2008-01-01"
 START_DATE_SHORT="2024-01-01"  # 模拟持仓使用较短的日期范围

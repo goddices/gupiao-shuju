@@ -53,10 +53,11 @@ def _quote_to_dataframe(quote) -> pd.DataFrame:
     return df
 
 
-async def _fetch_all_async(stock_code: str, market: str, end_date: str, db_cookies: list = None) -> dict:
+async def _fetch_all_async(stock_code: str, market: str, end_date: str, db_cookies: list = None, limit: int = 5000) -> dict:
     """
     异步并行拉取三种复权类型的行情数据。
     数据源由 config/datasource.py 配置决定（tickflow / eastmoney / akshare），不自动切换。
+    limit 为每路拉取的K线条数（从 end_date 向前数），日常增量同步可传小值提速。
     返回 {"none": DataFrame, "forward": DataFrame, "backward": DataFrame,
           "sources": {"none": 数据源, "forward": 数据源, "backward": 数据源}}
     """
@@ -73,7 +74,7 @@ async def _fetch_all_async(stock_code: str, market: str, end_date: str, db_cooki
                 adjust_type=adjust_type,
                 period_type=PeriodType.DAILY,
                 end_date=end_date,
-                limit=5000,
+                limit=limit,
             )
             if quote:
                 return _quote_to_dataframe(quote), ds_name
@@ -103,6 +104,7 @@ def fetch_stock_data_full(
     stock_code: str,
     start_date: str = "2006-01-01",
     end_date: Optional[str] = None,
+    limit: int = 5000,
 ) -> dict:
     """
     拉取单只股票的三种复权数据并写入数据库。
@@ -110,6 +112,8 @@ def fetch_stock_data_full(
     - 不复权 → open_price / high_price / low_price / close_price / volume / amount
     - 前复权 → forward_open / forward_high / forward_low / forward_close
     - 后复权 → backward_open / backward_high / backward_low / backward_close
+    - limit → 每路复权拉取的K线条数（从 end_date 向前数），默认 5000；
+      增量同步（start_date 接近 end_date）时可传小值减少数据传输
 
     返回 {"stock_code": str, "status": str, "total_rows": int, "details": [...]}
     """
@@ -135,7 +139,7 @@ def fetch_stock_data_full(
         # 从数据库加载已验证的 Cookie 列表作为最终兜底
         from services import get_fallback_cookies
         db_cookies = get_fallback_cookies(db)
-        data = asyncio.run(_fetch_all_async(stock_code, market, end_date, db_cookies))
+        data = asyncio.run(_fetch_all_async(stock_code, market, end_date, db_cookies, limit))
     except Exception as e:
         return {
             "stock_code": stock_code,
@@ -335,6 +339,32 @@ def fetch_stock_data_full(
         "total_rows": new_count + update_count,
         "details": details,
     }
+
+
+# ---- 只同步当天（增量快速同步） ----
+def fetch_stock_data_today(
+    db: Session,
+    stock_code: str,
+    trade_date: Optional[str] = None,
+) -> dict:
+    """
+    只同步当天（或指定交易日）的行情 —— 增量快速同步。
+
+    起始日期 = 结束日期 = 当天，且每路复权只拉取最近 10 根K线，
+    仅写入/更新当天一行，远快于 fetch_stock_data_full 全量同步，
+    适合每个交易日收盘后定时执行（见 sync_today.sh）。
+
+    注意: 前复权价格随最新行情每日变动，本函数不会回刷历史前复权价格；
+    如需精确的历史前复权序列，请定期用 fetch_stock_data_full 做全量校准。
+
+    :param trade_date: 'YYYYMMDD'，默认今天
+    :return: 同 fetch_stock_data_full
+    """
+    if trade_date is None:
+        trade_date = date.today().strftime("%Y%m%d")
+    return fetch_stock_data_full(
+        db, stock_code, start_date=trade_date, end_date=trade_date, limit=10,
+    )
 
 
 # ---- 保留旧接口兼容 ----

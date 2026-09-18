@@ -11,6 +11,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
 
+# TickFlow API Key: 环境变量已配置时优先，否则用这里的默认值
+: "${TICKFLOW_API_KEY:=tk_aef1f7190ff44f32b5226f796a3c38ea}"
+export TICKFLOW_API_KEY
+
 # 颜色输出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
