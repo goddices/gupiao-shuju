@@ -24,8 +24,11 @@ EMPTY_COLUMNS = ["date", "open", "high", "low", "close", "volume"]
 
 
 def resolve_market(stock_code: str, stock_name: str = "") -> str:
-    """判断交易所: 000001(上证指数) 与 6 开头 → 沪市，其余 → 深市"""
+    """判断交易所: 000001(上证指数)/000300(沪深300) 与 6 开头 → 沪市，其余 → 深市"""
     if stock_code == "000001" and stock_name in ("上证指数", "上证综指", ""):
+        return Market.SHANGHAI
+    # 沪深300 在东方财富/TickFlow 使用沪市 secid/symbol（000300.SH）
+    if stock_code == "000300":
         return Market.SHANGHAI
     return Market.SHANGHAI if stock_code.startswith("6") else Market.SHENGZHEN
 

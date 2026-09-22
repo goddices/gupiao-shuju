@@ -5,7 +5,7 @@ CLI 公共库 —— 参数解析与交互输入
 - 父解析器工厂（均 add_help=False，经 sub.add_parser(parents=[...]) 注入子命令，
   避免与子命令自带的 --help 冲突）
 - ask()/ask_period()：EOFError 安全的交互输入（管道/重定向下优雅退回默认值）
-- build_parser()：主解析器 + 10 个中文子命令（argparse 对中文子命令精确匹配优先，
+- build_parser()：主解析器 + 11 个中文子命令（argparse 对中文子命令精确匹配优先，
   「红利再投」与「红利再投增强版」共存无歧义）
 - interactive_menu()：无参数时的功能菜单（从 analysis.tools 注册表懒加载模块）
 
@@ -91,7 +91,7 @@ def _import_tool(name: str):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """构建主解析器（含 10 个子命令；会 import 全部工具模块，约 1-2s）"""
+    """构建主解析器（含 11 个子命令；会 import 全部工具模块，约 1-2s）"""
     from analysis.tools import TOOLS
     parser = argparse.ArgumentParser(
         prog="股票分析",
