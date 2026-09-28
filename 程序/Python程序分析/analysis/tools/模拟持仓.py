@@ -586,7 +586,8 @@ def add_parser(sub):
                        parents=[
                            code_parent(default="600519",
                                        help_text="股票代码（默认 600519 贵州茅台）"),
-                           range_parent(start_help="起始日期 YYYY-MM-DD（默认：2024-01-01）",
+                           range_parent(start_default="2024-01-01",
+                                        start_help="起始日期 YYYY-MM-DD（默认：2024-01-01）",
                                         end_help="结束日期 YYYY-MM-DD（默认：今天）"),
                        ])
     p.add_argument("--capital", type=float, default=100000, help="初始资金（默认 100000 元）")

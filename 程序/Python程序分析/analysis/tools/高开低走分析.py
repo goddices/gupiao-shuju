@@ -313,6 +313,7 @@ def add_parser(sub):
         help=DESCRIPTION,
         parents=[
             range_parent(
+                start_default=DEFAULT_START,
                 start_help=f"起始日期 YYYY-MM-DD（默认：{DEFAULT_START}）",
                 end_help="结束日期 YYYY-MM-DD（默认：今天）",
             ),

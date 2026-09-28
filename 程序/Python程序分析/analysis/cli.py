@@ -25,10 +25,11 @@ def code_parent(default: str = "601857",
     return p
 
 
-def range_parent(start_help: str = "起始日期 YYYY-MM-DD（默认：最早有数据）",
+def range_parent(start_default: str = None,
+                 start_help: str = "起始日期 YYYY-MM-DD（默认：最早有数据）",
                  end_help: str = "结束日期 YYYY-MM-DD（默认：最新有数据）") -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(add_help=False)
-    p.add_argument("--start", default=None, help=start_help)
+    p.add_argument("--start", default=start_default, help=start_help)
     p.add_argument("--end", default=None, help=end_help)
     return p
 

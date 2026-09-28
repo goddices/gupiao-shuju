@@ -643,7 +643,8 @@ def add_parser(sub):
                        parents=[
                            code_parent(default="000001",
                                        help_text="股票代码（默认 000001 上证指数）"),
-                           range_parent(start_help="起始日期 YYYY-MM-DD（默认：2008-01-01）",
+                           range_parent(start_default="2008-01-01",
+                                        start_help="起始日期 YYYY-MM-DD（默认：2008-01-01）",
                                         end_help="结束日期 YYYY-MM-DD（默认：今天）"),
                            market_parent(),
                        ])
